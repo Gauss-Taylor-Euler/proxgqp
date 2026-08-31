@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cmath>
 #include <limits>
 
-#include "cone/kernel.hpp"
 #include "types.hpp"
 
 namespace proxgqp::detail {
@@ -13,6 +13,7 @@ using Matrix3 = Eigen::Matrix<Scalar, 3, 3>;
 constexpr Scalar kSearchLimit = 1e12;
 constexpr Scalar kUnboundedProbe = 1e6;
 constexpr int kBisectionSteps = 60;
+constexpr Scalar kBisectionTolerance = 1e-9;
 
 template <typename ConeType, typename Inside>
 Scalar bisect_margin(const ConeType& cone, const ConstVectorRef& point,
@@ -40,6 +41,9 @@ Scalar bisect_margin(const ConeType& cone, const ConstVectorRef& point,
     if (lower <= -kSearchLimit) return -kSearchLimit;
   }
   for (int step = 0; step < kBisectionSteps; ++step) {
+    if (upper - lower <=
+        kBisectionTolerance * std::max(std::abs(upper), Scalar(1)))
+      break;
     const Scalar middle = 0.5 * (lower + upper);
     (inside_at(middle) ? lower : upper) = middle;
   }
@@ -65,33 +69,13 @@ Scalar bisect_step(const ConeType& cone, const ConstVectorRef& point,
   }
   if (upper >= kSearchLimit) return unbounded;
   for (int step = 0; step < kBisectionSteps; ++step) {
+    if (upper - lower <=
+        kBisectionTolerance * std::max(std::abs(upper), Scalar(1)))
+      break;
     const Scalar middle = 0.5 * (lower + upper);
     (inside_at(middle) ? lower : upper) = middle;
   }
   return lower;
-}
-
-inline void fill_curved_barrier(const ConstVectorRef& z,
-                                Scalar complementarity, const Vector3& gradient,
-                                const Matrix3& hessian, Scalar rho_p,
-                                GBlock& block, BlockScaling& scaling) {
-  scaling.source = ScalingSource::Barrier;
-  scaling.barrier_gradient = gradient;
-  scaling.dual_point = z;
-  scaling.complementarity = complementarity;
-  block.kind = GBlock::Kind::Dense;
-  block.dense = complementarity * hessian;
-  block.dense.diagonal().array() += rho_p;
-}
-
-inline void fill_curved_projection(const Matrix3& jacobian, Scalar rho_p,
-                                   Scalar mu, GBlock& block,
-                                   BlockScaling& scaling) {
-  scaling.source = ScalingSource::Projection;
-  scaling.projection_jacobian = jacobian;
-  block.kind = GBlock::Kind::Dense;
-  block.dense = jacobian / mu;
-  block.dense.diagonal().array() += rho_p;
 }
 
 }

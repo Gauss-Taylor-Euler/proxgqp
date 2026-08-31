@@ -14,7 +14,8 @@ struct StepPair {
   Scalar dual = 1.0;
 };
 
-enum class GlobalisationKind { UnitStep, FractionToBoundary, ExactSearch };
+enum class GlobalisationKind { UnitStep, FractionToBoundary, ExactSearch,
+                               ArmijoSearch, DecreaseSearch };
 enum class LineSearchKind { Exact, Armijo, Decrease };
 
 struct GlobalisationSettings {
@@ -23,6 +24,9 @@ struct GlobalisationSettings {
   Scalar largest_step = 1.0;
   std::size_t largest_secant = 40;
   Scalar largest_search_step = 1e6;
+  Scalar armijo_slope_fraction = 1e-4;
+  Scalar backtrack_factor = 0.5;
+  std::size_t largest_backtrack = 60;
 };
 
 struct Globalisation {
@@ -40,6 +44,12 @@ std::unique_ptr<Globalisation> make_globalisation(
 std::unique_ptr<Globalisation> make_unit_step(
     const GlobalisationSettings& settings);
 std::unique_ptr<Globalisation> make_fraction_to_boundary(
+    const GlobalisationSettings& settings);
+
+std::unique_ptr<Globalisation> make_armijo_search(
+    const GlobalisationSettings& settings);
+
+std::unique_ptr<Globalisation> make_decrease_search(
     const GlobalisationSettings& settings);
 std::unique_ptr<Globalisation> make_exact_search(
     const GlobalisationSettings& settings);

@@ -4,18 +4,16 @@ import subprocess
 import sys
 import time
 
-HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RESULT_DIRECTORY = os.path.join(HERE, "result")
-
-THREAD_VARIABLES = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS",
-                    "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS",
-                    "RAYON_NUM_THREADS")
+import run_store
+from run_store import (HERE, RESULT_DIRECTORY, RUNS_DIRECTORY, THREAD_VARIABLES,
+                       load_rows, write_rows)
 
 
-def child_environment(threads):
+def child_environment(threads, out_of_the_box=False):
     environment = dict(os.environ)
     for variable in THREAD_VARIABLES:
         environment[variable] = str(threads)
+    environment["GQP_OUT_OF_THE_BOX"] = "1" if out_of_the_box else "0"
     extra_path = os.environ.get("GQP_PROXQP", "")
     if extra_path:
         existing = environment.get("PYTHONPATH", "")
@@ -36,20 +34,13 @@ def failed_record(set_name, solver_name, problem_path, status, seconds):
             "outer": None, "inner": None}
 
 
-def write_rows(set_name, solver_name, rows):
-    os.makedirs(RESULT_DIRECTORY, exist_ok=True)
-    destination = os.path.join(RESULT_DIRECTORY, "%s_%s.json" % (solver_name, set_name))
-    with open(destination, "w") as handle:
-        json.dump(rows, handle, indent=1)
-
-
 def sequence_key(benchmark, problem_path):
     getter = getattr(benchmark, "sequence_key", None)
     return getter(problem_path) if getter is not None else None
 
 
 def run_benchmark(set_name, solver_names, eps_abs, time_limit_seconds, threads,
-                  sequential=False):
+                  sequential=False, run=None, out_of_the_box=False):
     benchmark_module = os.path.join(HERE, set_name, set_name + ".py")
     sys.path.insert(0, os.path.join(HERE, "utils"))
     import importlib.util
@@ -62,7 +53,13 @@ def run_benchmark(set_name, solver_names, eps_abs, time_limit_seconds, threads,
                      and hasattr(getattr(module, name), "list_problems"))
 
     problem_paths = benchmark.list_problems()
-    environment = child_environment(threads)
+    run_directory = run_store.resolve(run) if run else run_store.create(
+        [set_name], solver_names,
+        {"eps_abs": eps_abs, "time_limit_seconds": time_limit_seconds,
+         "threads": threads, "sequential": sequential, "parallel_workers": 1,
+         "out_of_the_box": out_of_the_box})
+    print("[%s] run %s" % (set_name, os.path.basename(run_directory)), flush=True)
+    environment = child_environment(threads, out_of_the_box)
     rows = {solver_name: [] for solver_name in solver_names}
     runner = os.path.join(HERE, "run_one.py")
     total = len(problem_paths) * len(solver_names)
@@ -119,8 +116,9 @@ def run_benchmark(set_name, solver_names, eps_abs, time_limit_seconds, threads,
             if known is not None and latest["n"] is None:
                 latest["n"], latest["m"] = known["n"], known["m"]
                 latest["cones"] = known["cones"]
-            write_rows(set_name, solver_name, rows[solver_name])
+            write_rows(run_directory, set_name, solver_name, rows[solver_name])
 
+    run_store.finish(run_directory, started_all)
     print("[%s] finished in %.1f s" % (set_name, time.perf_counter() - started_all))
     for solver_name in solver_names:
         verified = sum(1 for row in rows[solver_name] if row["verified"])

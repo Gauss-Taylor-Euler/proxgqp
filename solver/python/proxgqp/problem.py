@@ -26,7 +26,7 @@ def _matrix(value, shape, name):
 
 class Problem:
 
-    def __init__(self, P, q, E, f, cones):
+    def __init__(self, P, q, E, b, cones):
         cones = list(cones)
         for cone in cones:
             if not isinstance(cone, Cone):
@@ -40,7 +40,7 @@ class Problem:
         self.q = q
         self.P = _matrix(P, (self.columns, self.columns), "P")
         self.E = _matrix(E, (self.rows, self.columns), "E")
-        self.f = _vector(f, self.rows, "f")
+        self.b = _vector(b, self.rows, "b")
 
         self.kinds = numpy.array([cone.kind for cone in cones], dtype=numpy.int32)
         self.sizes = numpy.array([cone.size for cone in cones], dtype=numpy.int64)

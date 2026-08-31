@@ -20,7 +20,7 @@ def covariance_factor(matrix):
 
 def stack(blocks, values, cones):
     return {"E": scipy.sparse.vstack(blocks).tocsc(),
-            "f": numpy.concatenate(values), "cones": cones}
+            "b": numpy.concatenate(values), "cones": cones}
 
 
 def budget_and_long_only(asset_count, variable_count):

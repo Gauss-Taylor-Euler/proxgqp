@@ -1,6 +1,7 @@
 import numpy
 
-from const import INFINITY, SMALLEST_RELATIVE_TOLERANCE, UNBOUNDED_ITERATIONS
+from const import (INFINITY, OUT_OF_THE_BOX, SMALLEST_RELATIVE_TOLERANCE,
+                   UNBOUNDED_ITERATIONS)
 from reformulate import split_linear, gather_dual
 
 
@@ -27,15 +28,16 @@ class Proxqp:
 
         solver = backend.sparse.QP(variable_count, equality_matrix.shape[0],
                                    inequality_matrix.shape[0])
-        solver.settings.eps_abs = eps_abs
-        solver.settings.eps_rel = SMALLEST_RELATIVE_TOLERANCE
-        solver.settings.check_duality_gap = True
-        solver.settings.eps_primal_inf = eps_abs
-        solver.settings.eps_dual_inf = eps_abs
-        solver.settings.eps_duality_gap_abs = eps_abs
-        solver.settings.eps_duality_gap_rel = SMALLEST_RELATIVE_TOLERANCE
-        solver.settings.max_iter = UNBOUNDED_ITERATIONS
-        solver.settings.max_iter_in = UNBOUNDED_ITERATIONS
+        if not OUT_OF_THE_BOX:
+            solver.settings.eps_abs = eps_abs
+            solver.settings.eps_rel = SMALLEST_RELATIVE_TOLERANCE
+            solver.settings.check_duality_gap = True
+            solver.settings.eps_primal_inf = eps_abs
+            solver.settings.eps_dual_inf = eps_abs
+            solver.settings.eps_duality_gap_abs = eps_abs
+            solver.settings.eps_duality_gap_rel = SMALLEST_RELATIVE_TOLERANCE
+            solver.settings.max_iter = UNBOUNDED_ITERATIONS
+            solver.settings.max_iter_in = UNBOUNDED_ITERATIONS
         solver.settings.verbose = False
         solver.init(problem["P"].tocsc(), numpy.asarray(problem["q"], float),
                     equality_matrix, equality_value,

@@ -20,6 +20,8 @@ struct Cholmod final : Backend {
   cholmod_factor* factor = nullptr;
   mutable cholmod_dense right_hand_side_view{};
   mutable cholmod_dense* solution_dense = nullptr;
+  mutable cholmod_dense* solve_work = nullptr;
+  mutable cholmod_dense* solve_scratch = nullptr;
   bool factorised = false;
   std::size_t requested_threads = 1;
 
@@ -30,6 +32,12 @@ struct Cholmod final : Backend {
   }
 
   ~Cholmod() override {
+    if (solve_scratch != nullptr) {
+      cholmod_free_dense(&solve_scratch, &common);
+    }
+    if (solve_work != nullptr) {
+      cholmod_free_dense(&solve_work, &common);
+    }
     if (solution_dense != nullptr) {
       cholmod_free_dense(&solution_dense, &common);
     }
@@ -97,10 +105,9 @@ struct Cholmod final : Backend {
     right_hand_side_view.xtype = CHOLMOD_REAL;
     right_hand_side_view.dtype = CHOLMOD_DOUBLE;
 
-    if (solution_dense != nullptr) {
-      cholmod_free_dense(&solution_dense, &common);
-    }
-    solution_dense = cholmod_solve(CHOLMOD_A, factor, &right_hand_side_view, &common);
+    cholmod_solve2(CHOLMOD_A, factor, &right_hand_side_view, nullptr,
+                   &solution_dense, nullptr, &solve_work, &solve_scratch,
+                   &common);
     const Scalar* produced = static_cast<const Scalar*>(solution_dense->x);
     std::copy(produced, produced + stored.dimension, solution);
   }

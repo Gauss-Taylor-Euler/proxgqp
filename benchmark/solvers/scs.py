@@ -1,7 +1,8 @@
 import numpy
 import scipy.sparse
 
-from const import SMALLEST_RELATIVE_TOLERANCE, UNBOUNDED_ITERATIONS
+from const import (SMALLEST_RELATIVE_TOLERANCE, UNBOUNDED_ITERATIONS,
+                   imposed)
 from reformulate import order_rows
 
 KIND_ORDER = ("Zero", "Nonneg", "SecondOrder", "PSDTriangle", "Exponential", "Power")
@@ -28,7 +29,7 @@ class Scs:
 
         row_order, blocks = order_rows(problem["cones"], KIND_ORDER)
         E = problem["E"].tocsr()[row_order].tocsc()
-        f = numpy.asarray(problem["f"], float)[row_order]
+        offset = numpy.asarray(problem["b"], float)[row_order]
 
         cone_sizes = {
             "z": int(sum(size for size, _p, _r in blocks.get("Zero", []))),
@@ -39,17 +40,19 @@ class Scs:
             "p": [float(params["alpha"]) for _s, params, _r in blocks.get("Power", [])],
         }
         data = {"P": scipy.sparse.triu(problem["P"], format="csc"),
-                "A": E, "b": f, "c": numpy.asarray(problem["q"], float)}
+                "A": E, "b": offset, "c": numpy.asarray(problem["q"], float)}
 
-        options = dict(eps_abs=eps_abs, eps_rel=SMALLEST_RELATIVE_TOLERANCE,
-                       eps_infeas=eps_abs, max_iters=UNBOUNDED_ITERATIONS,
-                       verbose=False)
+        options = dict(verbose=False,
+                       **imposed(eps_abs=eps_abs,
+                                 eps_rel=SMALLEST_RELATIVE_TOLERANCE,
+                                 eps_infeas=eps_abs,
+                                 max_iters=UNBOUNDED_ITERATIONS))
         if warm_start is not None:
             primal = numpy.asarray(warm_start["x"], float)
             dual = numpy.asarray(warm_start["z"], float)[row_order]
             data["x"] = primal
             data["y"] = dual
-            data["s"] = f - E @ primal
+            data["s"] = offset - E @ primal
         solution = backend.solve(data, cone_sizes, **options)
         status = STATUS_NAMES.get(str(solution["info"]["status"]).strip().lower(), "max_iter")
         if solution["x"] is None or solution["y"] is None:

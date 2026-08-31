@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -117,10 +118,14 @@ struct Schur final : Road {
     std::copy(base_values.begin(), base_values.end(), system.valuePtr());
     right_hand_side.setZero(rows_x);
     solution.setZero(rows_x);
-    residual.setZero(rows_x);
-    correction.setZero(rows_x);
     slack_work.setZero(rows_s);
     slack_other.setZero(rows_s);
+    image_x.setZero(rows_x);
+    image_s.setZero(rows_s);
+    image_y.setZero(rows_s);
+    step_x.setZero(rows_x);
+    step_s.setZero(rows_s);
+    step_y.setZero(rows_s);
 
     Pattern pattern;
     pattern.dimension = rows_x;
@@ -165,17 +170,16 @@ struct Schur final : Road {
                 const ConstVectorRef& equality_penalty) override {
     slack = proximal_slack;
     block_scalings = &scalings;
+    operators = &blocks;
     stored_penalty = equality_penalty;
     std::copy(base_values.begin(), base_values.end(), system.valuePtr());
     weights.assign(layouts.size(), GBlock());
-    inverses.assign(layouts.size(), GBlock());
 
     for (std::size_t j = 0; j < layouts.size(); ++j) {
       BlockLayout& layout = layouts[j];
       const auto penalty =
           equality_penalty.segment(layout.start, layout.length);
       if (!layout.by_application) {
-        invert_block(blocks[j], inverses[j]);
         schur_weight(blocks[j], penalty, weights[j]);
       }
       if (layout.diagonal_weight) {
@@ -217,38 +221,31 @@ struct Schur final : Road {
   bool factor() override { return back->numeric(system.valuePtr()); }
 
   void solve(const Residuals& residuals, Direction& direction) override {
-    for (std::size_t j = 0; j < layouts.size(); ++j) {
-      const BlockLayout& layout = layouts[j];
-      const auto slack_block =
-          residuals.stationary_slack.segment(layout.start, layout.length);
-      Vector negated = -slack_block;
-      Vector image(layout.length);
-      apply_inverse(j, negated, image);
-      slack_work.segment(layout.start, layout.length) =
-          residuals.equality.segment(layout.start, layout.length) - image;
-    }
-    right_hand_side = -residuals.stationary_x;
-    apply_weight_all(slack_work, slack_other);
-    right_hand_side.noalias() += constraint_values.transpose() * slack_other;
-
-    back->solve(right_hand_side.data(), solution.data());
-    detail::refine(system, *back, right_hand_side, settings.refinement_budget,
-                   solution, residual, correction);
-    direction.dx = solution;
-
-    slack_other.noalias() = constraint_values * solution;
-    slack_other -= slack_work;
-    apply_weight_all(slack_other, slack_work);
-    direction.dy = slack_work;
-
-    for (std::size_t j = 0; j < layouts.size(); ++j) {
-      const BlockLayout& layout = layouts[j];
-      Vector combined =
-          -residuals.stationary_slack.segment(layout.start, layout.length) -
-          direction.dy.segment(layout.start, layout.length);
-      Vector image(layout.length);
-      apply_inverse(j, combined, image);
-      direction.ds.segment(layout.start, layout.length) = image;
+    reduce(residuals.stationary_x, residuals.stationary_slack,
+           residuals.equality, direction.dx, direction.ds, direction.dy);
+    Scalar previous = std::numeric_limits<Scalar>::infinity();
+    const Scalar scale = std::max(
+        {infinity_norm(residuals.stationary_x),
+         infinity_norm(residuals.stationary_slack),
+         infinity_norm(residuals.equality), Scalar(1)});
+    for (std::size_t pass = 0; pass < settings.refinement_budget; ++pass) {
+      apply_system(direction.dx, direction.ds, direction.dy, image_x, image_s,
+                   image_y);
+      image_x += residuals.stationary_x;
+      image_s += residuals.stationary_slack;
+      image_y -= residuals.equality;
+      const Scalar size = std::max({infinity_norm(image_x),
+                                    infinity_norm(image_s),
+                                    infinity_norm(image_y)});
+      if (size >= previous ||
+          size <= std::numeric_limits<Scalar>::epsilon() * scale)
+        break;
+      previous = size;
+      image_y = -image_y;
+      reduce(image_x, image_s, image_y, step_x, step_s, step_y);
+      direction.dx += step_x;
+      direction.ds += step_s;
+      direction.dy += step_y;
     }
   }
 
@@ -260,6 +257,54 @@ struct Schur final : Road {
   const char* backend_name() const override { return back->name(); }
 
  private:
+  void reduce(const ConstVectorRef& stationary_x,
+              const ConstVectorRef& stationary_slack,
+              const ConstVectorRef& equality, VectorRef dx, VectorRef ds,
+              VectorRef dy) {
+    slack_work = equality - stored_penalty.cwiseProduct(stationary_slack);
+    apply_weight_all(slack_work, slack_other);
+    slack_other += stationary_slack;
+    right_hand_side = -stationary_x;
+    right_hand_side.noalias() += constraint_values.transpose() * slack_other;
+
+    back->solve(right_hand_side.data(), solution.data());
+    dx = solution;
+
+    slack_other.noalias() = constraint_values * solution;
+    slack_other -= slack_work;
+    apply_weight_all(slack_other, slack_work);
+    dy = slack_work - stationary_slack;
+    ds = stored_penalty.cwiseProduct(slack_work) - slack_other;
+  }
+
+  void apply_system(const ConstVectorRef& dx, const ConstVectorRef& ds,
+                    const ConstVectorRef& dy, Vector& out_x, Vector& out_s,
+                    Vector& out_y) {
+    out_x.setZero(rows_x);
+    const StorageIndex* starts = system.outerIndexPtr();
+    const StorageIndex* indices = system.innerIndexPtr();
+    for (Index column = 0; column < rows_x; ++column)
+      for (StorageIndex k = starts[column]; k < starts[column + 1]; ++k) {
+        const Scalar entry = base_values[std::size_t(k)];
+        if (entry == 0.0) continue;
+        const Index row = indices[k];
+        out_x(row) += entry * dx(column);
+        if (row != column) out_x(column) += entry * dx(row);
+      }
+    out_x.noalias() += constraint_values.transpose() * dy;
+
+    for (std::size_t j = 0; j < layouts.size(); ++j) {
+      const BlockLayout& layout = layouts[j];
+      apply_block((*operators)[j], ds.segment(layout.start, layout.length),
+                  out_s.segment(layout.start, layout.length));
+    }
+    out_s += dy;
+
+    out_y.noalias() = constraint_values * dx;
+    out_y += ds;
+    out_y -= stored_penalty.cwiseProduct(dy);
+  }
+
   void apply_weight(std::size_t j, const ConstVectorRef& penalty,
                     const ConstVectorRef& v, VectorRef out) {
     if (layouts[j].by_application)
@@ -267,13 +312,6 @@ struct Schur final : Road {
                          out);
     else
       apply_block(weights[j], v, out);
-  }
-
-  void apply_inverse(std::size_t j, const ConstVectorRef& v, VectorRef out) {
-    if (layouts[j].by_application)
-      apply_inverse_operator((*cones)[j], (*block_scalings)[j], slack, v, out);
-    else
-      apply_block(inverses[j], v, out);
   }
 
   void apply_weight_all(const Vector& v, Vector& out) {
@@ -294,10 +332,12 @@ struct Schur final : Road {
   RowMajorSparse constraint_by_row;
   std::vector<Scalar> base_values;
   std::vector<BlockLayout> layouts;
-  std::vector<GBlock> weights, inverses;
+  std::vector<GBlock> weights;
   std::vector<Index> objective_positions, diagonal_positions;
-  Vector right_hand_side, solution, residual, correction;
+  const std::vector<GBlock>* operators = nullptr;
+  Vector right_hand_side, solution;
   Vector slack_work, slack_other, stored_penalty;
+  Vector image_x, image_s, image_y, step_x, step_s, step_y;
   Index rows_x = 0, rows_s = 0;
   Scalar slack = 0.0;
 };

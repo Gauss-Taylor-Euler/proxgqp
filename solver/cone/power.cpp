@@ -265,10 +265,6 @@ SchurAssembly schur_assembly_impl(const Power&) {
   return SchurAssembly::Materialise;
 }
 
-void apply_inverse_operator_impl(const Power&, const BlockScaling&, Scalar,
-                                 const ConstVectorRef&, VectorRef) {
-  schur_weight_is_materialised();
-}
 
 void apply_schur_weight_impl(const Power&, const BlockScaling&, Scalar,
                              const ConstVectorRef&, const ConstVectorRef&,

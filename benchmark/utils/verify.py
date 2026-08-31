@@ -6,9 +6,9 @@ INFEASIBILITY_STATUSES = ("primal_infeasible", "dual_infeasible")
 
 
 def residuals(problem, x, z):
-    P, q, E, f = problem["P"], problem["q"], problem["E"], problem["f"]
+    P, q, E, offset = problem["P"], problem["q"], problem["E"], problem["b"]
     cones = problem["cones"]
-    slack = f - E @ x
+    slack = offset - E @ x
     infinity_norm = lambda vector: float(numpy.linalg.norm(vector, numpy.inf))
     primal_residual = infinity_norm(project_dual(cones, -slack))
     dual_residual = infinity_norm(P @ x + q + E.T @ z)
@@ -24,18 +24,18 @@ def scales(problem, x, z):
     residual asks it for an order of magnitude more accuracy than the rest.
     The gap carries its own tolerance for the same reason PIQP and Clarabel
     give it one: it is a different quantity, not a fourth residual."""
-    P, q, E, f = problem["P"], problem["q"], problem["E"], problem["f"]
+    P, q, E, offset = problem["P"], problem["q"], problem["E"], problem["b"]
     infinity_norm = lambda vector: float(numpy.linalg.norm(vector, numpy.inf))
     constraint_image = E @ x
-    slack = f - constraint_image
+    slack = offset - constraint_image
     quadratic = P @ x
     primal_scale = max(infinity_norm(constraint_image), infinity_norm(slack),
-                       infinity_norm(f))
+                       infinity_norm(offset))
     dual_scale = max(infinity_norm(quadratic), infinity_norm(q),
                      infinity_norm(E.T @ z))
     cone_scale = infinity_norm(z)
     primal_objective = float(0.5 * (x @ quadratic) + q @ x)
-    dual_objective = float(-0.5 * (x @ quadratic) - f @ z)
+    dual_objective = float(-0.5 * (x @ quadratic) - offset @ z)
     gap_scale = max(abs(primal_objective), abs(dual_objective))
     return primal_scale, dual_scale, cone_scale, gap_scale
 

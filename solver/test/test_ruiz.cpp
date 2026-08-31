@@ -22,12 +22,12 @@ void an_empty_row_is_left_alone() {
   SparseMatrix E = dense_from(constraint);
   SparseMatrix P = dense_from(DenseMatrix::Identity(columns, columns));
   Vector q = Vector::Ones(columns);
-  Vector f = Vector::Ones(rows);
+  Vector b = Vector::Ones(rows);
   const Cones cones{Nonneg{static_cast<std::size_t>(rows)}};
 
   ScaledProblem scaled;
   RuizSettings settings;
-  equilibrate(P, q, E, f, cones, settings, scaled);
+  equilibrate(P, q, E, b, cones, settings, scaled);
 
   CHECK_CLOSE(scaled.row_scale(2), 1.0, 1e-12);
   for (Index row = 0; row < rows; ++row) {
@@ -48,12 +48,12 @@ void an_empty_column_is_left_alone() {
   objective(2, 2) = 1.0;
   SparseMatrix P = dense_from(objective);
   Vector q = Vector::Zero(columns);
-  Vector f = Vector::Ones(rows);
+  Vector b = Vector::Ones(rows);
   const Cones cones{Nonneg{static_cast<std::size_t>(rows)}};
 
   ScaledProblem scaled;
   RuizSettings settings;
-  equilibrate(P, q, E, f, cones, settings, scaled);
+  equilibrate(P, q, E, b, cones, settings, scaled);
   CHECK_CLOSE(scaled.column_scale(1), 1.0, 1e-12);
 }
 
@@ -67,12 +67,12 @@ void the_scaling_round_trips() {
   DenseMatrix objective = DenseMatrix::Identity(columns, columns) * 7.0;
   SparseMatrix P = dense_from(objective);
   Vector q = Vector::LinSpaced(columns, 1.0, 4.0);
-  Vector f = Vector::LinSpaced(rows, 1.0, 3.0);
+  Vector b = Vector::LinSpaced(rows, 1.0, 3.0);
   const Cones cones{Nonneg{static_cast<std::size_t>(rows)}};
 
   ScaledProblem scaled;
   RuizSettings settings;
-  equilibrate(P, q, E, f, cones, settings, scaled);
+  equilibrate(P, q, E, b, cones, settings, scaled);
 
   Vector point = Vector::LinSpaced(columns, -1.0, 2.0);
   Vector carried(columns), back(columns);
@@ -97,12 +97,12 @@ void a_curved_block_keeps_one_factor() {
   SparseMatrix E = dense_from(constraint);
   SparseMatrix P = dense_from(DenseMatrix::Identity(columns, columns));
   Vector q = Vector::Ones(columns);
-  Vector f = Vector::Ones(block);
+  Vector b = Vector::Ones(block);
   const Cones cones{SecondOrder{block}};
 
   ScaledProblem scaled;
   RuizSettings settings;
-  equilibrate(P, q, E, f, cones, settings, scaled);
+  equilibrate(P, q, E, b, cones, settings, scaled);
   for (Index row = 1; row < static_cast<Index>(block); ++row)
     CHECK_CLOSE(scaled.row_scale(row), scaled.row_scale(0), 1e-12);
 }

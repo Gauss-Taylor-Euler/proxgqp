@@ -3,7 +3,8 @@ import os
 import numpy
 import scipy.sparse
 
-from const import SMALLEST_RELATIVE_TOLERANCE, UNBOUNDED_ITERATIONS
+from const import (OUT_OF_THE_BOX, SMALLEST_RELATIVE_TOLERANCE,
+                   UNBOUNDED_ITERATIONS)
 
 
 STATUS_NAMES = {
@@ -37,7 +38,7 @@ class Clarabel:
         import clarabel as backend
 
         E = problem["E"].tocsc()
-        f = numpy.asarray(problem["f"], float)
+        constraint_offset = numpy.asarray(problem["b"], float)
         row_order = numpy.arange(E.shape[0])
         cone_objects = []
         offset = 0
@@ -69,21 +70,22 @@ class Clarabel:
         reordered = not numpy.array_equal(row_order, numpy.arange(E.shape[0]))
         if reordered:
             E = E[row_order].tocsc()
-            f = f[row_order]
+            constraint_offset = constraint_offset[row_order]
 
         settings = backend.DefaultSettings()
         settings.verbose = False
         settings.max_threads = int(os.environ.get("OMP_NUM_THREADS", "1"))
-        settings.max_iter = UNBOUNDED_ITERATIONS
-        settings.tol_gap_abs = eps_abs
-        settings.tol_gap_rel = SMALLEST_RELATIVE_TOLERANCE
-        settings.tol_feas = eps_abs
-        settings.tol_infeas_abs = eps_abs
-        settings.tol_infeas_rel = SMALLEST_RELATIVE_TOLERANCE
+        if not OUT_OF_THE_BOX:
+            settings.max_iter = UNBOUNDED_ITERATIONS
+            settings.tol_gap_abs = eps_abs
+            settings.tol_gap_rel = SMALLEST_RELATIVE_TOLERANCE
+            settings.tol_feas = eps_abs
+            settings.tol_infeas_abs = eps_abs
+            settings.tol_infeas_rel = SMALLEST_RELATIVE_TOLERANCE
 
         solver = backend.DefaultSolver(problem["P"].tocsc(),
                                        numpy.asarray(problem["q"], float),
-                                       E, f, cone_objects, settings)
+                                       E, constraint_offset, cone_objects, settings)
         solution = solver.solve()
 
         status = STATUS_NAMES.get(str(solution.status), "max_iter")

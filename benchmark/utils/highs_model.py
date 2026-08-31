@@ -3,7 +3,7 @@ import os
 import numpy
 import scipy.sparse
 
-from const import (INFINITY, REGULARIZATION_BELOW_TOLERANCE,
+from const import (INFINITY, REGULARIZATION_BELOW_TOLERANCE,, OUT_OF_THE_BOX
                    UNBOUNDED_ITERATIONS)
 from reformulate import equality_inequality_rows
 
@@ -17,13 +17,13 @@ STATUS_NAMES = {
 
 def build(problem, backend):
     equality_rows, inequality_rows = equality_inequality_rows(problem["cones"])
-    f = numpy.asarray(problem["f"], float)
-    row_lower = numpy.empty_like(f)
-    row_upper = numpy.empty_like(f)
-    row_lower[equality_rows] = f[equality_rows]
-    row_upper[equality_rows] = f[equality_rows]
+    offset = numpy.asarray(problem["b"], float)
+    row_lower = numpy.empty_like(offset)
+    row_upper = numpy.empty_like(offset)
+    row_lower[equality_rows] = offset[equality_rows]
+    row_upper[equality_rows] = offset[equality_rows]
     row_lower[inequality_rows] = -INFINITY
-    row_upper[inequality_rows] = f[inequality_rows]
+    row_upper[inequality_rows] = offset[inequality_rows]
 
     E = problem["E"].tocsc()
     variable_count, row_count = E.shape[1], E.shape[0]
@@ -63,19 +63,20 @@ def run(problem, eps_abs, method):
     solver.setOptionValue("output_flag", False)
     solver.setOptionValue("solver", method)
     solver.setOptionValue("threads", int(os.environ.get("OMP_NUM_THREADS", "1")))
-    solver.setOptionValue("time_limit", float("inf"))
-    solver.setOptionValue("simplex_iteration_limit", UNBOUNDED_ITERATIONS)
-    solver.setOptionValue("ipm_iteration_limit", UNBOUNDED_ITERATIONS)
-    solver.setOptionValue("qp_iteration_limit", UNBOUNDED_ITERATIONS)
-    solver.setOptionValue("primal_feasibility_tolerance", eps_abs)
-    solver.setOptionValue("dual_feasibility_tolerance", eps_abs)
-    solver.setOptionValue("ipm_optimality_tolerance", eps_abs)
-    solver.setOptionValue("primal_residual_tolerance", eps_abs)
-    solver.setOptionValue("dual_residual_tolerance", eps_abs)
-    solver.setOptionValue("optimality_tolerance", eps_abs)
-    solver.setOptionValue("kkt_tolerance", eps_abs)
-    solver.setOptionValue("qp_regularization_value",
-                          eps_abs * REGULARIZATION_BELOW_TOLERANCE)
+    if not OUT_OF_THE_BOX:
+        solver.setOptionValue("time_limit", float("inf"))
+        solver.setOptionValue("simplex_iteration_limit", UNBOUNDED_ITERATIONS)
+        solver.setOptionValue("ipm_iteration_limit", UNBOUNDED_ITERATIONS)
+        solver.setOptionValue("qp_iteration_limit", UNBOUNDED_ITERATIONS)
+        solver.setOptionValue("primal_feasibility_tolerance", eps_abs)
+        solver.setOptionValue("dual_feasibility_tolerance", eps_abs)
+        solver.setOptionValue("ipm_optimality_tolerance", eps_abs)
+        solver.setOptionValue("primal_residual_tolerance", eps_abs)
+        solver.setOptionValue("dual_residual_tolerance", eps_abs)
+        solver.setOptionValue("optimality_tolerance", eps_abs)
+        solver.setOptionValue("kkt_tolerance", eps_abs)
+        solver.setOptionValue("qp_regularization_value",
+                              eps_abs * REGULARIZATION_BELOW_TOLERANCE)
 
     solver.passModel(build(problem, backend))
     hessian = build_hessian(problem, backend)

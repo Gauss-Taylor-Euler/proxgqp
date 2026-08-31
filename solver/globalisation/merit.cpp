@@ -7,62 +7,60 @@ namespace proxgqp {
 void Merit::setup(const Cones& given_cones, Index columns, Index rows) {
   cones = &given_cones;
   offsets = block_offsets(given_cones);
-  direction_x.setZero(columns);
   direction_slack.setZero(rows);
-  trial_x.setZero(columns);
-  trial_slack.setZero(rows);
+  direction_image.setZero(rows);
   residual.setZero(rows);
   multiplier.setZero(rows);
+  reference_base.setZero(rows);
   reference_point.setZero(rows);
   projected.setZero(rows);
-  gradient_x.setZero(columns);
-  gradient_slack.setZero(rows);
-  work_rows.setZero(rows);
+  slack_over_penalty.setZero(rows);
+  objective_image.setZero(columns);
 }
 
-void Merit::bind(const ProblemData& given_data, const Iterate& given_iterate,
+void Merit::bind(const ProblemData& data, const Iterate& iterate,
                  const ConstVectorRef& dx, const ConstVectorRef& ds) {
-  data = &given_data;
-  iterate = &given_iterate;
-  direction_x = dx;
   direction_slack = ds;
 
-  work_rows.noalias() = *data->E * direction_x;
-  work_rows += direction_slack;
-  trial_x.noalias() = *data->P * direction_x;
-  curvature = direction_x.dot(trial_x) +
-              iterate->rho * direction_x.squaredNorm() +
-              iterate->proximal_slack * direction_slack.squaredNorm() +
-              work_rows.dot(work_rows.cwiseQuotient(iterate->equality_penalty));
+  direction_image.noalias() = *data.E * dx;
+  direction_image += ds;
+  objective_image.noalias() = *data.P * dx;
+  curvature = objective_image.dot(dx) + iterate.rho * dx.squaredNorm() +
+              iterate.proximal_slack * ds.squaredNorm() +
+              direction_image.dot(
+                  direction_image.cwiseQuotient(iterate.equality_penalty));
+
+  residual.noalias() = *data.E * iterate.x;
+  residual += iterate.s - *data.b;
+  multiplier =
+      iterate.y_centre + residual.cwiseQuotient(iterate.equality_penalty);
+
+  objective_image.noalias() = *data.P * iterate.x;
+  constant = objective_image.dot(dx) + data.q->dot(dx) +
+             iterate.rho * (iterate.x - iterate.x_centre).dot(dx) +
+             iterate.proximal_slack * (iterate.s - iterate.s_centre).dot(ds) +
+             multiplier.dot(direction_image);
+
+  reference_base =
+      iterate.cone_penalty.cwiseProduct(iterate.z_centre) - iterate.s;
+  slack_over_penalty = ds.cwiseQuotient(iterate.cone_penalty);
+  penalty = iterate.cone_penalty;
+  evaluate_projection_all(*cones, offsets, reference_base, projected);
+  base_energy = projected.dot(projected.cwiseQuotient(penalty));
+}
+
+Scalar Merit::decrease(Scalar step) {
+  reference_point = reference_base - step * direction_slack;
+  evaluate_projection_all(*cones, offsets, reference_point, projected);
+  const Scalar moved = projected.dot(projected.cwiseQuotient(penalty));
+  return step * constant + 0.5 * step * step * curvature +
+         0.5 * (moved - base_energy);
 }
 
 Scalar Merit::slope(Scalar step) {
-  trial_x = iterate->x + step * direction_x;
-  trial_slack = iterate->s + step * direction_slack;
-
-  residual.noalias() = *data->E * trial_x;
-  residual += trial_slack - *data->f;
-  multiplier =
-      iterate->y_centre + residual.cwiseQuotient(iterate->equality_penalty);
-
-  reference_point =
-      iterate->cone_penalty.cwiseProduct(iterate->z_centre) - trial_slack;
-  for (std::size_t j = 0; j < cones->size(); ++j) {
-    const Index start = offsets[j];
-    const Index length = offsets[j + 1] - offsets[j];
-    evaluate_projection((*cones)[j], reference_point.segment(start, length),
-                        projected.segment(start, length));
-  }
-
-  gradient_x.noalias() = *data->P * trial_x;
-  gradient_x += *data->q + iterate->rho * (trial_x - iterate->x_centre);
-  gradient_x.noalias() += data->E->transpose() * multiplier;
-
-  gradient_slack =
-      iterate->proximal_slack * (trial_slack - iterate->s_centre) + multiplier -
-      projected.cwiseQuotient(iterate->cone_penalty);
-
-  return gradient_x.dot(direction_x) + gradient_slack.dot(direction_slack);
+  reference_point = reference_base - step * direction_slack;
+  evaluate_projection_all(*cones, offsets, reference_point, projected);
+  return constant + step * curvature - projected.dot(slack_over_penalty);
 }
 
 }

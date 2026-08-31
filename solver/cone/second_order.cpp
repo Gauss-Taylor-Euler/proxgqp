@@ -192,10 +192,6 @@ SchurAssembly schur_assembly_impl(const SecondOrder&) {
   return SchurAssembly::Materialise;
 }
 
-void apply_inverse_operator_impl(const SecondOrder&, const BlockScaling&,
-                                 Scalar, const ConstVectorRef&, VectorRef) {
-  schur_weight_is_materialised();
-}
 
 void apply_schur_weight_impl(const SecondOrder&, const BlockScaling&, Scalar,
                              const ConstVectorRef&, const ConstVectorRef&,
@@ -220,7 +216,7 @@ void complementarity_residual_impl(const SecondOrder&,
                                    const BlockScaling& scaling, Scalar target,
                                    VectorRef out) {
   jordan_product(scaling.lambda, scaling.lambda, out);
-  out(0) -= target;
+  out(0) -= 2.0 * target;
 }
 
 void second_order_correction_impl(const SecondOrder&,

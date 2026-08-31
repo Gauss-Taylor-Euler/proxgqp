@@ -65,14 +65,19 @@ def main(argv):
         stored = numpy.load(warm_start_file)
         if (stored["x"].size == record["n"] and stored["z"].size == record["m"]):
             warm_start = {"x": stored["x"], "z": stored["z"]}
+            if "s" in stored.files and stored["s"].size == record["m"]:
+                warm_start["s"] = stored["s"]
     record["warm_started"] = warm_start is not None
 
     started = time.perf_counter()
     result = solver.solve(problem, eps_abs, warm_start)
     record["seconds"] = time.perf_counter() - started
     if solution_file and result.get("x") is not None and result.get("z") is not None:
-        numpy.savez(solution_file, x=numpy.asarray(result["x"], float),
-                    z=numpy.asarray(result["z"], float))
+        saved = {"x": numpy.asarray(result["x"], float),
+                 "z": numpy.asarray(result["z"], float)}
+        if result.get("s") is not None:
+            saved["s"] = numpy.asarray(result["s"], float)
+        numpy.savez(solution_file, **saved)
     record["status"] = result["status"]
     record["outer"] = result.get("outer")
     record["inner"] = result.get("inner")

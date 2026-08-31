@@ -13,9 +13,9 @@ struct FeasibleStart final : Initialisation {
     iterate.x.setZero();
     iterate.y.setZero();
     iterate.z.setZero();
-    reflected = -*data.f;
+    reflected = -*data.b;
     evaluate_projection_all(cones, offsets, reflected, reflected);
-    iterate.s = *data.f + reflected;
+    iterate.s = *data.b + reflected;
     detail::anchor_centres(iterate);
   }
 

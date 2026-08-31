@@ -247,12 +247,6 @@ SchurAssembly schur_assembly_impl(const PSDTriangle&) {
   return SchurAssembly::ByApplication;
 }
 
-void apply_inverse_operator_impl(const PSDTriangle& cone,
-                                 const BlockScaling& scaling, Scalar rho_p,
-                                 const ConstVectorRef& v, VectorRef out) {
-  apply_in_operator_basis(cone, scaling, rho_p, v, out,
-                          [](Scalar entry) { return 1.0 / entry; });
-}
 
 void apply_schur_weight_impl(const PSDTriangle& cone,
                              const BlockScaling& scaling, Scalar rho_p,

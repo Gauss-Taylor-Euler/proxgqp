@@ -9,7 +9,7 @@ namespace proxgqp {
 
 struct Results {
   Vector x, s, z;
-  Status status = Status::MaxIterations;
+  Status status = Status::MaxIterOuter;
   KktReport kkt;
   std::size_t outer_iterations = 0;
   std::size_t inner_iterations = 0;

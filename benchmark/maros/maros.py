@@ -67,6 +67,6 @@ class Maros:
             "P": objective_hessian,
             "q": objective_gradient,
             "E": scipy.sparse.vstack(blocks).tocsc(),
-            "f": numpy.concatenate(right_hand_sides),
+            "b": numpy.concatenate(right_hand_sides),
             "cones": cones,
         }

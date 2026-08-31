@@ -1,6 +1,7 @@
 import numpy
 
-from const import UNBOUNDED_ITERATIONS, SMALLEST_RELATIVE_TOLERANCE
+from const import (SMALLEST_RELATIVE_TOLERANCE, UNBOUNDED_ITERATIONS,
+                   imposed)
 from reformulate import rows_by_kind
 
 INEQUALITY_ORDER = ("Nonneg", "SecondOrder", "Exponential")
@@ -50,21 +51,21 @@ class Ecos:
         inequality_rows = concatenate_rows(inequality_pieces)
 
         E = problem["E"].tocsr()
-        f = numpy.asarray(problem["f"], float)
+        offset = numpy.asarray(problem["b"], float)
         dimensions = {
             "l": int(sum(size for size, _p, _r in blocks.get("Nonneg", []))),
             "q": [int(size) for size, _p, _r in blocks.get("SecondOrder", [])],
             "e": len(blocks.get("Exponential", [])),
         }
         arguments = dict(c=numpy.asarray(problem["q"], float),
-                         G=E[inequality_rows].tocsc(), h=f[inequality_rows],
+                         G=E[inequality_rows].tocsc(), h=offset[inequality_rows],
                          dims=dimensions, verbose=False,
-                         feastol=eps_abs, abstol=eps_abs,
-                         reltol=SMALLEST_RELATIVE_TOLERANCE,
-                         max_iters=UNBOUNDED_ITERATIONS)
+                         **imposed(feastol=eps_abs, abstol=eps_abs,
+                                   reltol=SMALLEST_RELATIVE_TOLERANCE,
+                                   max_iters=UNBOUNDED_ITERATIONS))
         if equality_rows.size:
             arguments["A"] = E[equality_rows].tocsc()
-            arguments["b"] = f[equality_rows]
+            arguments["b"] = offset[equality_rows]
         solution = backend.solve(**arguments)
 
         status = STATUS_NAMES.get(int(solution["info"]["exitFlag"]), "max_iter")

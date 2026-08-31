@@ -151,12 +151,12 @@ def build(variable_count, cone_specification, rng, per_row=10,
 
     E = random_sparse_matrix(row_count, variable_count, per_row, rng)
     solution = rng.normal(size=variable_count)
-    f = E @ solution + slack
+    offset = E @ solution + slack
     rank = variable_count if objective_rank is None else objective_rank
     P = random_psd_matrix(variable_count, rank, condition_number, rng)
     q = -(P @ solution) - E.T @ dual
 
-    problem = {"P": P, "q": q, "E": E.tocsc(), "f": f, "cones": cones}
+    problem = {"P": P, "q": q, "E": E.tocsc(), "b": offset, "cones": cones}
     problem["objective_reference"] = float(
         0.5 * (solution @ (P @ solution)) + q @ solution)
     return problem, solution, dual

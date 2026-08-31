@@ -42,6 +42,3 @@ class RandomSet:
         return variable_count if requested < 0 else requested
 
 
-def ladder(sizes, seeds, conditions):
-    return [(size, seed, condition)
-            for size in sizes for condition in conditions for seed in seeds]

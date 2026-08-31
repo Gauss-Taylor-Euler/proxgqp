@@ -293,7 +293,7 @@ class Cblib:
             "P": scipy.sparse.csc_matrix((total_variable_count, total_variable_count)),
             "q": objective_gradient,
             "E": scipy.sparse.vstack(blocks).tocsc(),
-            "f": numpy.concatenate(right_hand_sides),
+            "b": numpy.concatenate(right_hand_sides),
             "cones": cones,
             "objective_constant": parsed["objective_constant"] * parsed["objective_sense"],
         }

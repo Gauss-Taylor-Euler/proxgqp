@@ -1,5 +1,3 @@
-#include <variant>
-
 #include "initialisation/initialisation.hpp"
 
 #include <algorithm>
@@ -36,33 +34,6 @@ void shift_inside(const Cones& cones, const std::vector<Index>& offsets,
     direction.resize(length);
     interior_direction(cones[j], side, direction);
     point.segment(start, length) += shift * direction;
-  }
-}
-
-void centre_complementarity(const Cones& cones,
-                            const std::vector<Index>& offsets, Vector& slack,
-                            Vector& dual) {
-  Scalar product = 0.0;
-  std::size_t degrees = 0;
-  for (std::size_t j = 0; j < cones.size(); ++j) {
-    if (!has_interior(cones[j])) continue;
-    const Index start = offsets[j];
-    const Index length = offsets[j + 1] - offsets[j];
-    product += slack.segment(start, length).dot(dual.segment(start, length));
-    degrees += degree(cones[j]);
-  }
-  if (!degrees) return;
-  const Scalar target = std::max(product / static_cast<Scalar>(degrees), 1e-10);
-
-  for (std::size_t j = 0; j < cones.size(); ++j) {
-    if (!std::holds_alternative<Nonneg>(cones[j])) continue;
-    const Index start = offsets[j];
-    const Index length = offsets[j + 1] - offsets[j];
-    for (Index row = start; row < start + length; ++row) {
-      const Scalar gap = dual(row) - slack(row);
-      dual(row) = 0.5 * (gap + std::sqrt(gap * gap + 4.0 * target));
-      slack(row) = dual(row) - gap;
-    }
   }
 }
 

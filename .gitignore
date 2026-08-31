@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 *.so
 cmake-build/
+build/
+benchmark/result/warm/
+*.swp
+*.swo

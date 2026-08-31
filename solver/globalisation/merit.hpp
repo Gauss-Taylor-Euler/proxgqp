@@ -13,17 +13,19 @@ struct Merit {
   void bind(const ProblemData& data, const Iterate& iterate,
             const ConstVectorRef& dx, const ConstVectorRef& ds);
   Scalar slope(Scalar step);
+  Scalar decrease(Scalar step);
   Scalar curvature_lower_bound() const { return curvature; }
 
  private:
   const Cones* cones = nullptr;
-  const ProblemData* data = nullptr;
-  const Iterate* iterate = nullptr;
   std::vector<Index> offsets;
-  Vector direction_x, direction_slack;
-  Vector trial_x, trial_slack, residual, multiplier, reference_point,
-      projected, gradient_x, gradient_slack, work_rows;
+  Vector direction_slack, direction_image, residual, multiplier;
+  Vector reference_base, reference_point, projected, slack_over_penalty;
+  Vector objective_image;
+  Vector penalty;
+  Scalar constant = 0.0;
   Scalar curvature = 0.0;
+  Scalar base_energy = 0.0;
 };
 
 }

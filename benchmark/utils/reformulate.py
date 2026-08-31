@@ -2,9 +2,6 @@ import numpy
 import scipy.sparse
 
 
-def cone_kinds(cones):
-    return {kind for kind, _size, _params in cones}
-
 
 def equality_inequality_rows(cones):
     equality_rows = []
@@ -25,12 +22,12 @@ def equality_inequality_rows(cones):
 
 def split_linear(problem):
     E = problem["E"].tocsr()
-    f = numpy.asarray(problem["f"], float)
+    offset = numpy.asarray(problem["b"], float)
     equality_rows, inequality_rows = equality_inequality_rows(problem["cones"])
     equality_matrix = E[equality_rows].tocsc()
     inequality_matrix = E[inequality_rows].tocsc()
-    return (equality_matrix, f[equality_rows],
-            inequality_matrix, f[inequality_rows],
+    return (equality_matrix, offset[equality_rows],
+            inequality_matrix, offset[inequality_rows],
             equality_rows, inequality_rows)
 
 

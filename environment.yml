@@ -1,0 +1,26 @@
+name: proxgqp
+channels:
+  - conda-forge
+dependencies:
+  - python=3.14
+  - cxx-compiler
+  - cmake>=4.0
+  - ninja
+  - make
+  - eigen>=5.0
+  - suitesparse>=7.10
+  - libblas
+  - liblapack
+  - nanobind>=2.12
+  - numpy>=2.4
+  - scipy>=1.17
+  - pandas>=3.0
+  - clarabel>=0.11
+  - piqp>=0.6
+  - scs>=3.2
+  - ecos>=2.0
+  - osqp>=1.1
+  - pip
+  - pip:
+      - highspy>=1.15
+      - proxsuite>=0.7

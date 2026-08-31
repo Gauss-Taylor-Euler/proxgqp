@@ -8,7 +8,7 @@ struct ProblemData {
   const SparseMatrix* P = nullptr;
   const Vector* q = nullptr;
   const SparseMatrix* E = nullptr;
-  const Vector* f = nullptr;
+  const Vector* b = nullptr;
 };
 
 struct Iterate {
@@ -18,6 +18,7 @@ struct Iterate {
   Vector equality_penalty;
   Scalar rho = 0.0;
   Scalar proximal_slack = 0.0;
+  Scalar regularisation_floor = 0.0;
 
   void resize(Index columns, Index rows) {
     x.setZero(columns);

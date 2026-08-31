@@ -38,4 +38,4 @@ class SkfolioRandom:
         loadings = generator.normal(size=(parameters["k"], assets))
         noise = generator.normal(size=(observations, assets))
         returns = (exposures @ loadings + 0.5 * noise) * 0.01
-        return build(FORMULATIONS[parameters["f"]], returns)
+        return build(FORMULATIONS[parameters["b"]], returns)

@@ -41,9 +41,5 @@ void shift_inside(const Cones& cones, const std::vector<Index>& offsets,
 
 void anchor_centres(Iterate& iterate);
 
-void centre_complementarity(const Cones& cones,
-                            const std::vector<Index>& offsets,
-                            Vector& slack, Vector& dual);
-
 }
 }

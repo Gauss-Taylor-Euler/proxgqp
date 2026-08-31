@@ -13,13 +13,13 @@
 
 namespace proxgqp {
 
-enum class Method { Semismooth, Interior };
+enum class Method { Semismooth, Interior, InteriorExp };
 
 struct Shared {
   Scalar rho = 1e-6;
   Scalar rho_p = 1e-4;
   Scalar mu_eq = 1e-3;
-  Scalar rho_p_decay = 0.7;
+  Scalar rho_p_decay = 1.0;
   Scalar rho_p_min = 1e-12;
   Scalar refactor_bump = 10.0;
   std::size_t max_refactor = 10;
@@ -31,24 +31,59 @@ struct Shared {
 };
 
 struct Tuning {
+
+  struct Bcl {
+    Scalar mu_in = 1e-1;
+    Scalar mu_eq = 1e-3;
+    Scalar alpha = 0.1;
+    Scalar beta = 0.9;
+    Scalar mu_update_factor = 0.1;
+    Scalar mu_min_in = 1e-8;
+    Scalar mu_min_eq = 1e-9;
+    Scalar cold_reset = 1.0 / 1.1;
+    Scalar cold_reset_threshold = 1e-5;
+    Scalar rho_p_outer = 0.1;
+    std::size_t safe_guard = 10000;
+    bool revert_on_reject = true;
+  } bcl;
+
+  struct Gbcl {
+    Scalar mu_in = 1e-1;
+    Scalar mu_eq = 1e-3;
+    Scalar mu_exp = 1.0;
+    Scalar penalty_reduction = 0.05;
+    Scalar mu_min = 1e-13;
+    Scalar mu_cut = 1e-3;
+    Scalar alpha = 0.1;
+    Scalar beta = 0.9;
+    Scalar eps_outer_init = 1e-2;
+    Scalar smallest_tolerance = 1e-13;
+    Scalar rho_p_outer = 0.1;
+  } gbcl;
+
+  struct GbclExp {
+    Scalar mu_in = 1e-1;
+    Scalar mu_eq = 1e-3;
+    Scalar alpha = 0.1;
+    Scalar beta = 0.9;
+    Scalar mu_exp = 2.0;
+    Scalar penalty_reduction = 0.3;
+    Scalar mu_adapt = 2.0;
+    Scalar mu_min = 1e-9;
+    Scalar eps_outer_init = 1e-2;
+    Scalar eps_newton_init = 1e-1;
+    Scalar rho_p_outer = 0.1;
+    std::size_t safe_guard = 30;
+  } gbcl_exp;
+
   struct Semismooth : Shared {
     Scalar mu_in = 1e-1;
     LineSearchKind line_search = LineSearchKind::Exact;
     Penalty penalty = Penalty::GBcl;
-    Scalar mu_exp = 1.0;
-    Scalar penalty_reduction = 0.05;
-    Scalar mu_min = 1e-13;
     Scalar ls_sigma = 1e-4;
     Scalar ls_beta = 0.5;
     std::size_t ls_max_back = 60;
     std::size_t ls_max_secant = 40;
-    Scalar alpha_bcl = 0.1;
-    Scalar beta_bcl = 0.9;
-    Scalar eps_newton_init = 1e-1;
-    Scalar eps_outer_init = 1e-2;
-    Scalar smallest_tolerance = 1e-13;
-    Scalar mu_cut = 1e-3;
-    std::size_t safe_guard = 30;
   } semismooth;
 
   struct Interior : Shared {
@@ -68,13 +103,17 @@ struct Tuning {
     Scalar improvement = 0.95;
     Scalar infeasibility_threshold = 0.9;
     Scalar stalled_rate = 0.666;
+    Scalar degenerate_step = 1e-6;
+    Scalar refactor_ratchet = 10.0;
     std::size_t stall_before_fine = 7;
     std::size_t early_outers = 5;
-  } interior;
+  } interior, interior_exp;
+
 
   const Shared& shared(Method method) const {
-    return method == Method::Interior ? static_cast<const Shared&>(interior)
-                                      : static_cast<const Shared&>(semismooth);
+    if (method == Method::Interior) return interior;
+    if (method == Method::InteriorExp) return interior_exp;
+    return semismooth;
   }
 };
 
@@ -83,12 +122,12 @@ struct Settings {
 
   Scalar eps_abs = 1e-9;
   Scalar eps_rel = 1e-9;
-  Scalar eps_gap_abs = 1e-9;
-  Scalar eps_gap_rel = 1e-9;
+  Scalar eps_gap_abs = 1e-8;
+  Scalar eps_gap_rel = 1e-8;
 
-  std::size_t max_iter = 250;
+  std::size_t max_iter_outer = 1000;
+  std::size_t max_iter_inner = 60;
   std::size_t max_newton = 4000;
-  std::size_t max_inner = 60;
 
   RoadKind road = RoadKind::ThreeByThree;
   BackendKind backend = BackendKind::Auto;

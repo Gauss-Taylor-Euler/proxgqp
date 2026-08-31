@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
 from bench import run_benchmark
 
 SET_NAME = "maros"
-SOLVERS = ["proxgqp_interior", "clarabel", "osqp", "piqp", "proxqp", "scs",
+SOLVERS = ["proxgqp_interior", "proxgqp_semismooth", "clarabel", "osqp", "piqp", "proxqp", "scs",
            "highs_simplex", "highs_ipm"]
 EPS_ABS = 1e-9
 TIME_LIMIT_SECONDS = 20

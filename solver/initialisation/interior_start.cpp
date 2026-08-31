@@ -85,7 +85,7 @@ struct InteriorStart final : Initialisation {
 
     const Index rows = iterate.s.size();
     empty_slack.setZero(rows);
-    Residuals residuals{*data.q, empty_slack, *data.f};
+    Residuals residuals{*data.q, empty_slack, *data.b};
     step_x.setZero(iterate.x.size());
     step_slack.setZero(rows);
     step_multiplier.setZero(rows);

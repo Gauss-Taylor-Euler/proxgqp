@@ -1,11 +1,21 @@
 from . import _core
 
-METHOD = {"semismooth": _core.Method.semismooth, "interior": _core.Method.interior,
-          "barrier": _core.Method.interior, "projection": _core.Method.semismooth}
+def _methods():
+    table = {"semismooth": _core.Method.semismooth,
+             "interior": _core.Method.interior,
+             "interior_exp": _core.Method.interior_exp,
+             "barrier": _core.Method.interior,
+             "projection": _core.Method.semismooth}
+    return table
+
+
+METHOD = _methods()
 LINE_SEARCH = {"exact": _core.LineSearch.exact, "armijo": _core.LineSearch.armijo,
                "decrease": _core.LineSearch.decrease}
-PENALTY = {"bcl": _core.Penalty.bcl, "gbcl": _core.Penalty.gbcl}
-ROAD = {"three_by_three": _core.Road.three_by_three, "3x3": _core.Road.three_by_three,
+PENALTY = {"bcl": _core.Penalty.bcl, "gbcl": _core.Penalty.gbcl,
+           "gbcl_exp": _core.Penalty.gbcl_exp}
+ROAD = {"auto": _core.Road.automatic,
+        "three_by_three": _core.Road.three_by_three, "3x3": _core.Road.three_by_three,
         "schur": _core.Road.schur}
 BACKEND = {"eigen_sparse": _core.Backend.eigen_sparse,
            "eigen_dense": _core.Backend.eigen_dense,
@@ -33,8 +43,13 @@ PRESETS = {
 
 
 def _targets(settings):
-    return (("", settings), ("interior", settings.tuning.interior),
-            ("semismooth", settings.tuning.semismooth))
+    found = [("", settings), ("bcl", settings.tuning.bcl),
+             ("gbcl", settings.tuning.gbcl),
+             ("interior", settings.tuning.interior),
+             ("interior_exp", settings.tuning.interior_exp),
+             ("gbcl_exp", settings.tuning.gbcl_exp),
+             ("semismooth", settings.tuning.semismooth)]
+    return tuple(found)
 
 
 def knob_names():

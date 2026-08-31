@@ -46,18 +46,6 @@ void apply_block(const GBlock& block, const ConstVectorRef& v, VectorRef out) {
   }
 }
 
-void apply_all(const std::vector<GBlock>& blocks,
-               const std::vector<Index>& offsets, const ConstVectorRef& v,
-               Vector& out) {
-  assert(v.data() != out.data());
-  for (std::size_t index = 0; index < blocks.size(); ++index) {
-    const Index start = offsets[index];
-    const Index length = offsets[index + 1] - offsets[index];
-    apply_block(blocks[index], v.segment(start, length),
-                out.segment(start, length));
-  }
-}
-
 void invert_block(const GBlock& block, GBlock& out) {
   out.kind = block.kind;
   switch (block.kind) {
@@ -114,10 +102,44 @@ void add_penalty(const ConstVectorRef& penalty, GBlock& block) {
 
 void schur_weight(const GBlock& block, const ConstVectorRef& equality_penalty,
                   GBlock& out) {
-  GBlock inverted;
-  invert_block(block, inverted);
-  add_penalty(equality_penalty, inverted);
-  invert_block(inverted, out);
+  if (block.kind == GBlock::Kind::Diagonal) {
+    out.kind = GBlock::Kind::Diagonal;
+    out.diagonal =
+        block.diagonal.array() /
+        (1.0 + block.diagonal.array() * equality_penalty.array());
+    return;
+  }
+
+  if (block.kind == GBlock::Kind::DiagPlusLowRank) {
+    const Scalar penalty = equality_penalty(0);
+    const DenseMatrix& columns = block.low_rank_columns;
+    const DenseMatrix& middle = block.low_rank_middle;
+    const Index rank = middle.rows();
+    const Scalar shifted = 1.0 + penalty * block.delta;
+    const DenseMatrix gram = columns.transpose() * columns;
+    const DenseMatrix scaled_middle = penalty * middle;
+    DenseMatrix inner = DenseMatrix::Identity(rank, rank) +
+                        (gram * scaled_middle) / shifted;
+    const DenseMatrix resolved = inner.fullPivLu().solve(scaled_middle);
+
+    out.kind = GBlock::Kind::DiagPlusLowRank;
+    out.delta = block.delta / shifted;
+    out.low_rank_columns = columns;
+    out.low_rank_middle =
+        middle / shifted - (block.delta / (shifted * shifted)) * resolved -
+        (middle * gram * resolved) / (shifted * shifted);
+    out.low_rank_middle =
+        0.5 * (out.low_rank_middle + out.low_rank_middle.transpose()).eval();
+    return;
+  }
+
+  const Index rows = block.dense.rows();
+  DenseMatrix shifted = DenseMatrix::Identity(rows, rows) +
+                        equality_penalty.asDiagonal() * block.dense;
+  out.kind = GBlock::Kind::Dense;
+  out.dense = shifted.fullPivLu().solve(block.dense);
+  out.dense = 0.5 * (out.dense + out.dense.transpose()).eval();
 }
+
 
 }

@@ -41,7 +41,7 @@ struct Projection final : Smoothing {
     constraint_image.noalias() = *data.E * iterate.x;
     held.equality =
         iterate.equality_penalty.cwiseProduct(iterate.y - iterate.y_centre) -
-        (constraint_image + iterate.s - *data.f);
+        (constraint_image + iterate.s - *data.b);
 
     for (std::size_t j = 0; j < cones->size(); ++j) {
       const Index start = offsets[j];

@@ -16,14 +16,14 @@ struct RuizSettings {
 
 struct ScaledProblem {
   SparseMatrix P, E;
-  Vector q, f;
+  Vector q, b;
   Vector column_scale;
   Vector row_scale;
   Scalar cost_scale = 1.0;
 };
 
 void equilibrate(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
-                 const Vector& f, const Cones& cones,
+                 const Vector& b, const Cones& cones,
                  const RuizSettings& settings, ScaledProblem& scaled);
 
 void unscale_primal(const ScaledProblem& scaled, const Vector& x_scaled,

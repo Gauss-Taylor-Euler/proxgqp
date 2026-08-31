@@ -7,7 +7,9 @@ from .settings import make_settings
 STATUS = {_core.Status.solved: "solved",
           _core.Status.primal_infeasible: "primal_infeasible",
           _core.Status.dual_infeasible: "dual_infeasible",
-          _core.Status.max_iterations: "max_iterations",
+          _core.Status.max_iter_outer: "max_iter_outer",
+          _core.Status.max_newton: "max_newton",
+          _core.Status.max_newton: "max_newton",
           _core.Status.numerical_failure: "numerical_failure"}
 
 
@@ -21,6 +23,8 @@ class Solution:
         self.objective = results.objective
         self.primal_residual = results.primal_residual
         self.dual_residual = results.dual_residual
+        self.relative_primal_residual = results.relative_primal_residual
+        self.relative_dual_residual = results.relative_dual_residual
         self.dual_cone_violation = results.dual_cone_violation
         self.complementarity = results.complementarity
         self.outer_iterations = results.outer_iterations
@@ -35,6 +39,8 @@ class Solution:
     def residuals(self):
         return {"primal": self.primal_residual,
                 "dual": self.dual_residual,
+                "relative_primal": self.relative_primal_residual,
+                "relative_dual": self.relative_dual_residual,
                 "cone": self.dual_cone_violation,
                 "complementarity": self.complementarity}
 
@@ -85,7 +91,7 @@ def solve(problem, preset=None, warm_start=None, settings=None, **knobs):
         problem.E.indptr.astype(numpy.int32),
         problem.E.indices.astype(numpy.int32),
         numpy.ascontiguousarray(problem.E.data, dtype=numpy.float64),
-        problem.f,
+        problem.b,
         problem.kinds, problem.sizes, problem.exponents,
         settings, _warm_triple(problem, warm_start))
     return Solution(results)
@@ -115,11 +121,11 @@ def solve_qp(P, q, A=None, b=None, G=None, h=None, preset=None,
 
     if blocks:
         E = scipy.sparse.vstack(blocks, format="csc")
-        f = numpy.concatenate(offsets)
+        b = numpy.concatenate(offsets)
     else:
         E = scipy.sparse.csc_matrix((0, columns), dtype=numpy.float64)
-        f = numpy.zeros(0, dtype=numpy.float64)
+        b = numpy.zeros(0, dtype=numpy.float64)
 
-    problem = Problem(P, q, E, f, cones)
+    problem = Problem(P, q, E, b, cones)
     return solve(problem, preset=preset, warm_start=warm_start,
                  settings=settings, **knobs)

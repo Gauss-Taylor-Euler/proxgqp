@@ -33,7 +33,7 @@ void flatten_curved(const Cones& cones, const std::vector<Index>& offsets,
 }
 
 void equilibrate(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
-                 const Vector& f, const Cones& cones,
+                 const Vector& b, const Cones& cones,
                  const RuizSettings& settings, ScaledProblem& scaled) {
   const Index columns = P.rows();
   const Index rows = E.rows();
@@ -42,7 +42,7 @@ void equilibrate(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
   scaled.P = P;
   scaled.E = E;
   scaled.q = q;
-  scaled.f = f;
+  scaled.b = b;
   scaled.column_scale.setOnes(columns);
   scaled.row_scale.setOnes(rows);
   scaled.cost_scale = 1.0;
@@ -83,7 +83,7 @@ void equilibrate(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
       for (SparseMatrix::InnerIterator it(scaled.E, column); it; ++it)
         it.valueRef() *= row_pass(it.row()) * column_pass(column);
     scaled.q.array() *= column_pass.array();
-    scaled.f.array() *= row_pass.array();
+    scaled.b.array() *= row_pass.array();
     scaled.column_scale.array() *= column_pass.array();
     scaled.row_scale.array() *= row_pass.array();
     if (worst <= settings.tolerance) break;

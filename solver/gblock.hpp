@@ -22,9 +22,6 @@ Index block_rows(const GBlock& block);
 
 void apply_block(const GBlock& block, const ConstVectorRef& v, VectorRef out);
 
-void apply_all(const std::vector<GBlock>& blocks,
-               const std::vector<Index>& offsets, const ConstVectorRef& v,
-               Vector& out);
 
 void invert_block(const GBlock& block, GBlock& out);
 

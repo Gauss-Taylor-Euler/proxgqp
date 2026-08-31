@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(
 from bench import run_benchmark
 
 SET_NAME = "seq_rebalance"
-SOLVERS = ["proxgqp_interior", "clarabel", "scs", "osqp", "piqp", "proxqp"]
+SOLVERS = ["proxgqp_interior", "proxgqp_semismooth", "clarabel", "scs", "osqp", "piqp", "proxqp"]
 EPS_ABS = 1e-9
 TIME_LIMIT_SECONDS = 20
 THREADS = 1

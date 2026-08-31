@@ -84,16 +84,6 @@ SchurAssembly schur_assembly(const Cone& cone) {
       cone);
 }
 
-void apply_inverse_operator(const Cone& cone, const BlockScaling& scaling,
-                            Scalar rho_p, const ConstVectorRef& v,
-                            VectorRef out) {
-  std::visit(
-      [&](const auto& kind) {
-        detail::apply_inverse_operator_impl(kind, scaling, rho_p, v, out);
-      },
-      cone);
-}
-
 void apply_schur_weight(const Cone& cone, const BlockScaling& scaling,
                         Scalar rho_p, const ConstVectorRef& mu_s,
                         const ConstVectorRef& v, VectorRef out) {

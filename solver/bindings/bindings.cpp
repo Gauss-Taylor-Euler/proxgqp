@@ -70,12 +70,14 @@ NB_MODULE(_core, handle) {
       .value("solved", Status::Solved)
       .value("primal_infeasible", Status::PrimalInfeasible)
       .value("dual_infeasible", Status::DualInfeasible)
-      .value("max_iterations", Status::MaxIterations)
+      .value("max_iter_outer", Status::MaxIterOuter)
+      .value("max_newton", Status::MaxNewton)
       .value("numerical_failure", Status::NumericalFailure);
 
   nb::enum_<Method>(handle, "Method")
       .value("semismooth", Method::Semismooth)
-      .value("interior", Method::Interior);
+      .value("interior", Method::Interior)
+      .value("interior_exp", Method::InteriorExp);
 
   nb::enum_<LineSearchKind>(handle, "LineSearch")
       .value("exact", LineSearchKind::Exact)
@@ -84,9 +86,11 @@ NB_MODULE(_core, handle) {
 
   nb::enum_<Penalty>(handle, "Penalty")
       .value("bcl", Penalty::Bcl)
-      .value("gbcl", Penalty::GBcl);
+      .value("gbcl", Penalty::GBcl)
+      .value("gbcl_exp", Penalty::GBclExp);
 
   nb::enum_<RoadKind>(handle, "Road")
+      .value("automatic", RoadKind::Auto)
       .value("three_by_three", RoadKind::ThreeByThree)
       .value("schur", RoadKind::Schur);
 
@@ -118,20 +122,54 @@ NB_MODULE(_core, handle) {
       .def_rw("mu_in", &Tuning::Semismooth::mu_in)
       .def_rw("line_search", &Tuning::Semismooth::line_search)
       .def_rw("penalty", &Tuning::Semismooth::penalty)
-      .def_rw("mu_exp", &Tuning::Semismooth::mu_exp)
-      .def_rw("penalty_reduction", &Tuning::Semismooth::penalty_reduction)
-      .def_rw("mu_min", &Tuning::Semismooth::mu_min)
-      .def_rw("mu_cut", &Tuning::Semismooth::mu_cut)
       .def_rw("ls_sigma", &Tuning::Semismooth::ls_sigma)
       .def_rw("ls_beta", &Tuning::Semismooth::ls_beta)
       .def_rw("ls_max_back", &Tuning::Semismooth::ls_max_back)
-      .def_rw("ls_max_secant", &Tuning::Semismooth::ls_max_secant)
-      .def_rw("alpha_bcl", &Tuning::Semismooth::alpha_bcl)
-      .def_rw("beta_bcl", &Tuning::Semismooth::beta_bcl)
-      .def_rw("eps_newton_init", &Tuning::Semismooth::eps_newton_init)
-      .def_rw("eps_outer_init", &Tuning::Semismooth::eps_outer_init)
-      .def_rw("smallest_tolerance", &Tuning::Semismooth::smallest_tolerance)
-      .def_rw("safe_guard", &Tuning::Semismooth::safe_guard);
+      .def_rw("ls_max_secant", &Tuning::Semismooth::ls_max_secant);
+
+  nb::class_<Tuning::Bcl>(handle, "Bcl")
+      .def(nb::init<>())
+      .def_rw("mu_in", &Tuning::Bcl::mu_in)
+      .def_rw("mu_eq", &Tuning::Bcl::mu_eq)
+      .def_rw("alpha", &Tuning::Bcl::alpha)
+      .def_rw("beta", &Tuning::Bcl::beta)
+      .def_rw("mu_update_factor", &Tuning::Bcl::mu_update_factor)
+      .def_rw("mu_min_in", &Tuning::Bcl::mu_min_in)
+      .def_rw("mu_min_eq", &Tuning::Bcl::mu_min_eq)
+      .def_rw("cold_reset", &Tuning::Bcl::cold_reset)
+      .def_rw("cold_reset_threshold", &Tuning::Bcl::cold_reset_threshold)
+      .def_rw("rho_p_outer", &Tuning::Bcl::rho_p_outer)
+      .def_rw("safe_guard", &Tuning::Bcl::safe_guard)
+      .def_rw("revert_on_reject", &Tuning::Bcl::revert_on_reject);
+
+  nb::class_<Tuning::Gbcl>(handle, "Gbcl")
+      .def(nb::init<>())
+      .def_rw("mu_in", &Tuning::Gbcl::mu_in)
+      .def_rw("mu_eq", &Tuning::Gbcl::mu_eq)
+      .def_rw("mu_exp", &Tuning::Gbcl::mu_exp)
+      .def_rw("penalty_reduction", &Tuning::Gbcl::penalty_reduction)
+      .def_rw("mu_min", &Tuning::Gbcl::mu_min)
+      .def_rw("mu_cut", &Tuning::Gbcl::mu_cut)
+      .def_rw("alpha", &Tuning::Gbcl::alpha)
+      .def_rw("beta", &Tuning::Gbcl::beta)
+      .def_rw("eps_outer_init", &Tuning::Gbcl::eps_outer_init)
+      .def_rw("smallest_tolerance", &Tuning::Gbcl::smallest_tolerance)
+      .def_rw("rho_p_outer", &Tuning::Gbcl::rho_p_outer);
+
+  nb::class_<Tuning::GbclExp>(handle, "GbclExp")
+      .def(nb::init<>())
+      .def_rw("mu_in", &Tuning::GbclExp::mu_in)
+      .def_rw("mu_eq", &Tuning::GbclExp::mu_eq)
+      .def_rw("alpha", &Tuning::GbclExp::alpha)
+      .def_rw("beta", &Tuning::GbclExp::beta)
+      .def_rw("mu_exp", &Tuning::GbclExp::mu_exp)
+      .def_rw("penalty_reduction", &Tuning::GbclExp::penalty_reduction)
+      .def_rw("mu_adapt", &Tuning::GbclExp::mu_adapt)
+      .def_rw("mu_min", &Tuning::GbclExp::mu_min)
+      .def_rw("eps_outer_init", &Tuning::GbclExp::eps_outer_init)
+      .def_rw("eps_newton_init", &Tuning::GbclExp::eps_newton_init)
+      .def_rw("rho_p_outer", &Tuning::GbclExp::rho_p_outer)
+      .def_rw("safe_guard", &Tuning::GbclExp::safe_guard);
 
   nb::class_<Tuning::Interior>(handle, "Interior")
       .def(nb::init<>())
@@ -151,14 +189,21 @@ NB_MODULE(_core, handle) {
       .def_rw("improvement", &Tuning::Interior::improvement)
       .def_rw("stalled_rate", &Tuning::Interior::stalled_rate)
       .def_rw("stall_before_fine", &Tuning::Interior::stall_before_fine)
-      .def_rw("early_outers", &Tuning::Interior::early_outers);
+      .def_rw("early_outers", &Tuning::Interior::early_outers)
+      .def_rw("degenerate_step", &Tuning::Interior::degenerate_step)
+      .def_rw("refactor_ratchet", &Tuning::Interior::refactor_ratchet);
+
 
 #undef PROXGQP_SHARED
 
   nb::class_<Tuning>(handle, "Tuning")
       .def(nb::init<>())
       .def_rw("semismooth", &Tuning::semismooth)
-      .def_rw("interior", &Tuning::interior);
+      .def_rw("bcl", &Tuning::bcl)
+      .def_rw("gbcl", &Tuning::gbcl)
+      .def_rw("gbcl_exp", &Tuning::gbcl_exp)
+      .def_rw("interior", &Tuning::interior)
+      .def_rw("interior_exp", &Tuning::interior_exp);
 
   nb::class_<Settings>(handle, "Settings")
       .def(nb::init<>())
@@ -167,9 +212,9 @@ NB_MODULE(_core, handle) {
       .def_rw("eps_rel", &Settings::eps_rel)
       .def_rw("eps_gap_abs", &Settings::eps_gap_abs)
       .def_rw("eps_gap_rel", &Settings::eps_gap_rel)
-      .def_rw("max_iter", &Settings::max_iter)
+      .def_rw("max_iter_outer", &Settings::max_iter_outer)
+      .def_rw("max_iter_inner", &Settings::max_iter_inner)
       .def_rw("max_newton", &Settings::max_newton)
-      .def_rw("max_inner", &Settings::max_inner)
       .def_rw("road", &Settings::road)
       .def_rw("backend", &Settings::backend)
       .def_rw("equilibrate", &Settings::equilibrate)
@@ -191,6 +236,10 @@ NB_MODULE(_core, handle) {
                    nb::rv_policy::reference)
       .def_prop_ro("primal_residual", [](const Results& r) { return r.kkt.primal_residual; })
       .def_prop_ro("dual_residual", [](const Results& r) { return r.kkt.dual_residual; })
+      .def_prop_ro("relative_primal_residual",
+                   [](const Results& r) { return r.kkt.relative_primal_residual; })
+      .def_prop_ro("relative_dual_residual",
+                   [](const Results& r) { return r.kkt.relative_dual_residual; })
       .def_prop_ro("dual_cone_violation", [](const Results& r) { return r.kkt.dual_cone_violation; })
       .def_prop_ro("complementarity", [](const Results& r) { return r.kkt.complementarity; })
       .def_prop_ro("objective", [](const Results& r) { return r.kkt.objective; });
@@ -209,7 +258,7 @@ NB_MODULE(_core, handle) {
         const SparseMatrix E = from_compressed(rows, columns, constraint_start,
                                                constraint_row, constraint_value);
         const Vector q = Eigen::Map<const Vector>(linear.data(), columns);
-        const Vector f = Eigen::Map<const Vector>(offset.data(), rows);
+        const Vector b = Eigen::Map<const Vector>(offset.data(), rows);
         const Cones cones = build_cones(cone_kind, cone_size, cone_exponent);
 
         Results start;
@@ -225,7 +274,7 @@ NB_MODULE(_core, handle) {
           start.has_point = true;
           warm_pointer = &start;
         }
-        return solve(P, q, E, f, cones, settings, warm_pointer);
+        return solve(P, q, E, b, cones, settings, warm_pointer);
       },
       nb::arg("columns"), nb::arg("rows"), nb::arg("objective_start"),
       nb::arg("objective_row"), nb::arg("objective_value"), nb::arg("linear"),

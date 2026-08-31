@@ -8,7 +8,7 @@
 namespace proxgqp {
 
 Results solve(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
-              const Vector& f, const Cones& cones, const Settings& settings,
+              const Vector& b, const Cones& cones, const Settings& settings,
               const Results* warm = nullptr);
 
 }

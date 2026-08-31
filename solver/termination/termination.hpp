@@ -13,7 +13,8 @@ enum class Status {
   Solved,
   PrimalInfeasible,
   DualInfeasible,
-  MaxIterations,
+  MaxIterOuter,
+  MaxNewton,
   NumericalFailure,
 };
 
@@ -22,6 +23,8 @@ const char* status_name(Status status);
 struct KktReport {
   Scalar primal_residual = 0.0;
   Scalar dual_residual = 0.0;
+  Scalar relative_primal_residual = 0.0;
+  Scalar relative_dual_residual = 0.0;
   Scalar dual_cone_violation = 0.0;
   Scalar complementarity = 0.0;
   Scalar objective = 0.0;
@@ -31,12 +34,15 @@ struct KktReport {
 struct TerminationSettings {
   Scalar eps_absolute = 1e-9;
   Scalar eps_relative = 1e-9;
+  Scalar eps_gap_absolute = 1e-8;
+  Scalar eps_gap_relative = 1e-8;
   Scalar eps_primal_infeasible = 1e-9;
   Scalar eps_dual_infeasible = 1e-9;
 };
 
 struct Termination {
   void setup(const Cones& cones, Index columns, Index rows);
+  const Vector& row_violation() const { return violation; }
   KktReport evaluate(const ProblemData& data, const Cones& cones,
                      const Vector& x, const Vector& z,
                      const TerminationSettings& settings);
@@ -51,6 +57,7 @@ struct Termination {
  private:
   std::vector<Index> offsets;
   Vector recomputed_slack, projected, stationarity, work_rows, work_columns;
+  Vector constraint_image, violation;
 };
 
 }

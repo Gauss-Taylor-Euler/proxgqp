@@ -94,6 +94,6 @@ class Netlib:
             "P": scipy.sparse.csc_matrix((variable_count, variable_count)),
             "q": objective_gradient,
             "E": scipy.sparse.vstack(blocks).tocsc(),
-            "f": numpy.concatenate(right_hand_sides),
+            "b": numpy.concatenate(right_hand_sides),
             "cones": cones,
         }

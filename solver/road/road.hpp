@@ -24,7 +24,7 @@ struct Direction {
   VectorRef dy;
 };
 
-enum class RoadKind { ThreeByThree, Schur };
+enum class RoadKind { Auto, ThreeByThree, Schur };
 
 struct RoadSettings {
   BackendKind backend = BackendKind::Auto;
@@ -53,6 +53,9 @@ struct Road {
   virtual const char* name() const = 0;
   virtual const char* backend_name() const = 0;
 };
+
+RoadKind resolve_road(RoadKind requested, Index columns, Index rows,
+                      Index constraint_nonzeros);
 
 std::unique_ptr<Road> make_road(RoadKind kind, const RoadSettings& settings);
 std::unique_ptr<Road> make_three_by_three(const RoadSettings& settings);

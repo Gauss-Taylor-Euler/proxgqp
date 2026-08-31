@@ -51,9 +51,6 @@ void materialise_operator(const Cone& cone, const BlockScaling& scaling,
                           Scalar rho_p, GBlock& block);
 SchurAssembly schur_assembly(const Cone& cone);
 GBlock::Kind widest_operator_kind(const Cone& cone);
-void apply_inverse_operator(const Cone& cone, const BlockScaling& scaling,
-                            Scalar rho_p, const ConstVectorRef& v,
-                            VectorRef out);
 void apply_schur_weight(const Cone& cone, const BlockScaling& scaling,
                         Scalar rho_p, const ConstVectorRef& mu_s,
                         const ConstVectorRef& v, VectorRef out);
@@ -99,9 +96,6 @@ namespace detail {
                                  GBlock& block);                              \
   SchurAssembly schur_assembly_impl(const CONE& cone);                        \
   GBlock::Kind widest_operator_kind_impl(const CONE& cone);              \
-  void apply_inverse_operator_impl(const CONE& cone,                          \
-                                   const BlockScaling& scaling, Scalar rho_p, \
-                                   const ConstVectorRef& v, VectorRef out);   \
   void apply_schur_weight_impl(                                               \
       const CONE& cone, const BlockScaling& scaling, Scalar rho_p,            \
       const ConstVectorRef& mu_s, const ConstVectorRef& v, VectorRef out);    \

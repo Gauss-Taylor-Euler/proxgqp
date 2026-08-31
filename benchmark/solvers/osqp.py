@@ -1,7 +1,8 @@
 import numpy
 import scipy.sparse
 
-from const import INFINITY, SMALLEST_RELATIVE_TOLERANCE, UNBOUNDED_ITERATIONS
+from const import (INFINITY, SMALLEST_RELATIVE_TOLERANCE,
+                   UNBOUNDED_ITERATIONS, imposed)
 from reformulate import equality_inequality_rows
 
 
@@ -26,21 +27,23 @@ class Osqp:
         import osqp as backend
 
         equality_rows, inequality_rows = equality_inequality_rows(problem["cones"])
-        f = numpy.asarray(problem["f"], float)
-        lower = numpy.empty_like(f)
-        upper = numpy.empty_like(f)
-        lower[equality_rows] = f[equality_rows]
-        upper[equality_rows] = f[equality_rows]
+        offset = numpy.asarray(problem["b"], float)
+        lower = numpy.empty_like(offset)
+        upper = numpy.empty_like(offset)
+        lower[equality_rows] = offset[equality_rows]
+        upper[equality_rows] = offset[equality_rows]
         lower[inequality_rows] = -INFINITY
-        upper[inequality_rows] = f[inequality_rows]
+        upper[inequality_rows] = offset[inequality_rows]
 
         solver = backend.OSQP()
         solver.setup(scipy.sparse.triu(problem["P"], format="csc"),
                      numpy.asarray(problem["q"], float),
                      problem["E"].tocsc(), lower, upper,
-                     eps_abs=eps_abs, eps_rel=SMALLEST_RELATIVE_TOLERANCE,
-                     eps_prim_inf=eps_abs, eps_dual_inf=eps_abs,
-                     max_iter=UNBOUNDED_ITERATIONS, polishing=True, verbose=False)
+                     verbose=False,
+                     **imposed(eps_abs=eps_abs,
+                               eps_rel=SMALLEST_RELATIVE_TOLERANCE,
+                               eps_prim_inf=eps_abs, eps_dual_inf=eps_abs,
+                               max_iter=UNBOUNDED_ITERATIONS, polishing=True))
         if warm_start is not None:
             solver.warm_start(x=numpy.asarray(warm_start["x"], float),
                               y=numpy.asarray(warm_start["z"], float))

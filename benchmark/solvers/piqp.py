@@ -1,6 +1,7 @@
 import numpy
 
-from const import INFINITY, SMALLEST_RELATIVE_TOLERANCE, UNBOUNDED_ITERATIONS
+from const import (INFINITY, OUT_OF_THE_BOX, SMALLEST_RELATIVE_TOLERANCE,
+                   UNBOUNDED_ITERATIONS)
 from reformulate import split_linear, gather_dual
 
 
@@ -27,12 +28,13 @@ class Piqp:
         inequality_count = inequality_value.size
 
         solver = backend.SparseSolver()
-        solver.settings.eps_abs = eps_abs
-        solver.settings.eps_rel = SMALLEST_RELATIVE_TOLERANCE
-        solver.settings.check_duality_gap = True
-        solver.settings.eps_duality_gap_abs = eps_abs
-        solver.settings.eps_duality_gap_rel = SMALLEST_RELATIVE_TOLERANCE
-        solver.settings.max_iter = UNBOUNDED_ITERATIONS
+        if not OUT_OF_THE_BOX:
+            solver.settings.eps_abs = eps_abs
+            solver.settings.eps_rel = SMALLEST_RELATIVE_TOLERANCE
+            solver.settings.check_duality_gap = True
+            solver.settings.eps_duality_gap_abs = eps_abs
+            solver.settings.eps_duality_gap_rel = SMALLEST_RELATIVE_TOLERANCE
+            solver.settings.max_iter = UNBOUNDED_ITERATIONS
         solver.settings.verbose = False
         solver.setup(problem["P"].tocsc(), numpy.asarray(problem["q"], float),
                      equality_matrix, equality_value,

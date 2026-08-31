@@ -63,10 +63,26 @@ void refine(const SparseMatrix& lower, const Backend& backend,
 
 }
 
+constexpr Scalar kSmallestReducedDensity = 0.1;
+
+RoadKind resolve_road(RoadKind requested, Index columns, Index rows,
+                      Index constraint_nonzeros) {
+  if (requested != RoadKind::Auto) return requested;
+  if (columns <= 0 || rows <= 0) return RoadKind::ThreeByThree;
+  if (rows <= columns) return RoadKind::ThreeByThree;
+
+  const Scalar entries = Scalar(columns) * Scalar(rows);
+  const Scalar constraint_density = Scalar(constraint_nonzeros) / entries;
+  const Scalar reduced_density =
+      std::min(Scalar(1), constraint_density * constraint_density * Scalar(rows));
+  if (reduced_density < kSmallestReducedDensity) return RoadKind::ThreeByThree;
+  return RoadKind::Schur;
+}
+
 std::unique_ptr<Road> make_road(RoadKind kind, const RoadSettings& settings) {
   switch (kind) {
-    case RoadKind::ThreeByThree: return make_three_by_three(settings);
-    default: return make_schur(settings);
+    case RoadKind::Schur: return make_schur(settings);
+    default: return make_three_by_three(settings);
   }
 }
 

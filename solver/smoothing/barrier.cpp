@@ -24,6 +24,8 @@ struct Barrier final : Smoothing {
     held_scalings.assign(given_cones.size(), BlockScaling());
     scaled_cone.setZero(rows);
     combined_slack.setZero(rows);
+    reference_point.setZero(rows);
+    block_image.setZero(rows);
     correction.setZero(rows);
     constraint_image.setZero(rows);
     barrier_degree = 0;
@@ -43,7 +45,7 @@ struct Barrier final : Smoothing {
     constraint_image.noalias() = *data.E * iterate.x;
     held.equality =
         iterate.equality_penalty.cwiseProduct(iterate.y - iterate.y_centre) -
-        (constraint_image + iterate.s - *data.f);
+        (constraint_image + iterate.s - *data.b);
 
     held.stationary_slack =
         iterate.proximal_slack * (iterate.s - iterate.s_centre) + iterate.y -
@@ -67,8 +69,9 @@ struct Barrier final : Smoothing {
       } else {
         const auto penalty = iterate.cone_penalty.segment(start, length);
         const auto centre = iterate.z_centre.segment(start, length);
-        const Vector reference_point = penalty.cwiseProduct(centre) - slack;
-        build_projection_scaling((*cones)[j], reference_point, penalty,
+        auto reference = reference_point.head(length);
+        reference = penalty.cwiseProduct(centre) - slack;
+        build_projection_scaling((*cones)[j], reference, penalty,
                                  held_scalings[j]);
         held.cone.segment(start, length) =
             penalty.cwiseProduct(dual - centre) + slack;
@@ -96,7 +99,7 @@ struct Barrier final : Smoothing {
     for (std::size_t j = 0; j < cones->size(); ++j) {
       const Index start = offsets[j];
       const Index length = offsets[j + 1] - offsets[j];
-      Vector image(length);
+      auto image = block_image.head(length);
       apply_block(held_blocks[j], ds.segment(start, length), image);
       image -= proximal_slack * ds.segment(start, length);
       dz.segment(start, length) = -image - scaled_cone.segment(start, length);
@@ -120,9 +123,10 @@ struct Barrier final : Smoothing {
               .dot(iterate.z.segment(start, length) +
                    dual_step * dz.segment(start, length));
     }
-    const Scalar ratio = std::min(
-        1.0, std::max(0.0, (reached / static_cast<Scalar>(barrier_degree)) /
-                               measure));
+    const Scalar ratio =
+        std::min(1.0, std::max(0.0,
+                               (reached / static_cast<Scalar>(barrier_degree)) /
+                                   measure));
     centring_used = std::min(settings.largest_centring,
                              std::max(settings.smallest_centring,
                                       ratio * ratio * ratio));
@@ -180,6 +184,7 @@ struct Barrier final : Smoothing {
   std::vector<GBlock> held_blocks;
   std::vector<BlockScaling> held_scalings;
   Vector scaled_cone, combined_slack, correction, constraint_image;
+  Vector reference_point, block_image;
   std::size_t barrier_degree = 0;
   Scalar centring_used = 0.0;
   Scalar measure = 0.0;
