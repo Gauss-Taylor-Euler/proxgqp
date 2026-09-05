@@ -33,4 +33,4 @@ class SkfolioRealCurved:
         parameters = decode(identifier)
         returns = returns_window(parameters["d"], parameters["e"] / 100.0,
                                  parameters["w"], ASSET_CAP)
-        return build(FORMULATIONS[parameters["b"]], returns)
+        return build(FORMULATIONS[parameters["f"]], returns)
