@@ -137,13 +137,14 @@ Results solve(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
       schedule_settings.loosen_exponent = gbcl.alpha;
       schedule_settings.tighten_exponent = gbcl.beta;
       schedule_settings.penalty_reduction = gbcl.penalty_reduction;
+      schedule_settings.mu_adapt = gbcl.mu_adapt;
       schedule_settings.smallest_penalty = gbcl.mu_min;
       schedule_settings.smallest_equality_penalty = gbcl.mu_min;
       schedule_settings.initial_tolerance = gbcl.eps_outer_init;
+      schedule_settings.newton_tolerance = gbcl.eps_newton_init;
       schedule_settings.violation_exponent = gbcl.mu_exp;
-      schedule_settings.smallest_factor = gbcl.mu_cut;
-      schedule_settings.smallest_tolerance = gbcl.smallest_tolerance;
       schedule_settings.proximal_slack_reduction = gbcl.rho_p_outer;
+      schedule_settings.safe_guard = gbcl.safe_guard;
     }
   }
   schedule_settings.initial_penalty = initial_cone_penalty;

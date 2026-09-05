@@ -50,15 +50,16 @@ struct Tuning {
   struct Gbcl {
     Scalar mu_in = 1e-1;
     Scalar mu_eq = 1e-3;
-    Scalar mu_exp = 1.0;
-    Scalar penalty_reduction = 0.05;
-    Scalar mu_min = 1e-13;
-    Scalar mu_cut = 1e-3;
     Scalar alpha = 0.1;
     Scalar beta = 0.9;
+    Scalar mu_exp = 2.0;
+    Scalar mu_adapt = 2.0;
+    Scalar mu_min = 1e-9;
+    Scalar penalty_reduction = 0.3;
     Scalar eps_outer_init = 1e-2;
-    Scalar smallest_tolerance = 1e-13;
+    Scalar eps_newton_init = 1e-1;
     Scalar rho_p_outer = 0.1;
+    std::size_t safe_guard = 30;
   } gbcl;
 
   struct GbclExp {
@@ -103,7 +104,7 @@ struct Tuning {
     Scalar improvement = 0.95;
     Scalar infeasibility_threshold = 0.9;
     Scalar stalled_rate = 0.666;
-    Scalar degenerate_step = 1e-6;
+    Scalar degenerate_step = 0.0;
     Scalar refactor_ratchet = 10.0;
     std::size_t stall_before_fine = 7;
     std::size_t early_outers = 5;

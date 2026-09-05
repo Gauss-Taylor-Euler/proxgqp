@@ -13,7 +13,6 @@ using Matrix3 = Eigen::Matrix<Scalar, 3, 3>;
 constexpr Scalar kSearchLimit = 1e12;
 constexpr Scalar kUnboundedProbe = 1e6;
 constexpr int kBisectionSteps = 60;
-constexpr Scalar kBisectionTolerance = 1e-9;
 
 template <typename ConeType, typename Inside>
 Scalar bisect_margin(const ConeType& cone, const ConstVectorRef& point,
@@ -41,9 +40,6 @@ Scalar bisect_margin(const ConeType& cone, const ConstVectorRef& point,
     if (lower <= -kSearchLimit) return -kSearchLimit;
   }
   for (int step = 0; step < kBisectionSteps; ++step) {
-    if (upper - lower <=
-        kBisectionTolerance * std::max(std::abs(upper), Scalar(1)))
-      break;
     const Scalar middle = 0.5 * (lower + upper);
     (inside_at(middle) ? lower : upper) = middle;
   }
@@ -69,9 +65,6 @@ Scalar bisect_step(const ConeType& cone, const ConstVectorRef& point,
   }
   if (upper >= kSearchLimit) return unbounded;
   for (int step = 0; step < kBisectionSteps; ++step) {
-    if (upper - lower <=
-        kBisectionTolerance * std::max(std::abs(upper), Scalar(1)))
-      break;
     const Scalar middle = 0.5 * (lower + upper);
     (inside_at(middle) ? lower : upper) = middle;
   }

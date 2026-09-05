@@ -149,11 +149,12 @@ NB_MODULE(_core, handle) {
       .def_rw("mu_exp", &Tuning::Gbcl::mu_exp)
       .def_rw("penalty_reduction", &Tuning::Gbcl::penalty_reduction)
       .def_rw("mu_min", &Tuning::Gbcl::mu_min)
-      .def_rw("mu_cut", &Tuning::Gbcl::mu_cut)
+      .def_rw("mu_adapt", &Tuning::Gbcl::mu_adapt)
       .def_rw("alpha", &Tuning::Gbcl::alpha)
       .def_rw("beta", &Tuning::Gbcl::beta)
       .def_rw("eps_outer_init", &Tuning::Gbcl::eps_outer_init)
-      .def_rw("smallest_tolerance", &Tuning::Gbcl::smallest_tolerance)
+      .def_rw("eps_newton_init", &Tuning::Gbcl::eps_newton_init)
+      .def_rw("safe_guard", &Tuning::Gbcl::safe_guard)
       .def_rw("rho_p_outer", &Tuning::Gbcl::rho_p_outer);
 
   nb::class_<Tuning::GbclExp>(handle, "GbclExp")
