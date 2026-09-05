@@ -77,7 +77,7 @@ NB_MODULE(_core, handle) {
   nb::enum_<Method>(handle, "Method")
       .value("semismooth", Method::Semismooth)
       .value("interior", Method::Interior)
-      .value("interior_exp", Method::InteriorExp);
+      .value("auto", Method::Auto);
 
   nb::enum_<LineSearchKind>(handle, "LineSearch")
       .value("exact", LineSearchKind::Exact)
@@ -86,8 +86,7 @@ NB_MODULE(_core, handle) {
 
   nb::enum_<Penalty>(handle, "Penalty")
       .value("bcl", Penalty::Bcl)
-      .value("gbcl", Penalty::GBcl)
-      .value("gbcl_exp", Penalty::GBclExp);
+      .value("gbcl", Penalty::GBcl);
 
   nb::enum_<RoadKind>(handle, "Road")
       .value("automatic", RoadKind::Auto)
@@ -157,20 +156,6 @@ NB_MODULE(_core, handle) {
       .def_rw("safe_guard", &Tuning::Gbcl::safe_guard)
       .def_rw("rho_p_outer", &Tuning::Gbcl::rho_p_outer);
 
-  nb::class_<Tuning::GbclExp>(handle, "GbclExp")
-      .def(nb::init<>())
-      .def_rw("mu_in", &Tuning::GbclExp::mu_in)
-      .def_rw("mu_eq", &Tuning::GbclExp::mu_eq)
-      .def_rw("alpha", &Tuning::GbclExp::alpha)
-      .def_rw("beta", &Tuning::GbclExp::beta)
-      .def_rw("mu_exp", &Tuning::GbclExp::mu_exp)
-      .def_rw("penalty_reduction", &Tuning::GbclExp::penalty_reduction)
-      .def_rw("mu_adapt", &Tuning::GbclExp::mu_adapt)
-      .def_rw("mu_min", &Tuning::GbclExp::mu_min)
-      .def_rw("eps_outer_init", &Tuning::GbclExp::eps_outer_init)
-      .def_rw("eps_newton_init", &Tuning::GbclExp::eps_newton_init)
-      .def_rw("rho_p_outer", &Tuning::GbclExp::rho_p_outer)
-      .def_rw("safe_guard", &Tuning::GbclExp::safe_guard);
 
   nb::class_<Tuning::Interior>(handle, "Interior")
       .def(nb::init<>())
@@ -202,9 +187,7 @@ NB_MODULE(_core, handle) {
       .def_rw("semismooth", &Tuning::semismooth)
       .def_rw("bcl", &Tuning::bcl)
       .def_rw("gbcl", &Tuning::gbcl)
-      .def_rw("gbcl_exp", &Tuning::gbcl_exp)
-      .def_rw("interior", &Tuning::interior)
-      .def_rw("interior_exp", &Tuning::interior_exp);
+      .def_rw("interior", &Tuning::interior);
 
   nb::class_<Settings>(handle, "Settings")
       .def(nb::init<>())

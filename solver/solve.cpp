@@ -25,8 +25,9 @@ Results solve(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
   const std::vector<Index> offsets = block_offsets(cones);
   validate(cones);
 
+  const Method method = resolve_method(settings.method);
   const Tuning& tuning_early = settings.tuning;
-  const Shared& shared_early = tuning_early.shared(settings.method);
+  const Shared& shared_early = tuning_early.shared(method);
   ScaledProblem scaled;
   if (settings.equilibrate) {
     RuizSettings ruiz_settings;
@@ -43,11 +44,9 @@ Results solve(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
   const ProblemData original{&P, &q, &E, &b};
 
   const Tuning& tuning = settings.tuning;
-  const bool interior = settings.method != Method::Semismooth;
-  const Tuning::Interior& barrier =
-      settings.method == Method::InteriorExp ? tuning.interior_exp
-                                             : tuning.interior;
-  const Shared& shared = tuning.shared(settings.method);
+  const bool interior = method != Method::Semismooth;
+  const Tuning::Interior& barrier = tuning.interior;
+  const Shared& shared = tuning.shared(method);
 
   RoadSettings road_settings;
   road_settings.backend = settings.backend;
@@ -115,21 +114,6 @@ Results solve(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
       schedule_settings.proximal_slack_reduction = bcl.rho_p_outer;
       schedule_settings.safe_guard = bcl.safe_guard;
       schedule_settings.revert_on_reject = bcl.revert_on_reject;
-    } else if (which == Penalty::GBclExp) {
-      const auto& gbcl = tuning.gbcl_exp;
-      initial_cone_penalty = gbcl.mu_in;
-      initial_equality_penalty = gbcl.mu_eq;
-      schedule_settings.loosen_exponent = gbcl.alpha;
-      schedule_settings.tighten_exponent = gbcl.beta;
-      schedule_settings.penalty_reduction = gbcl.penalty_reduction;
-      schedule_settings.mu_adapt = gbcl.mu_adapt;
-      schedule_settings.smallest_penalty = gbcl.mu_min;
-      schedule_settings.smallest_equality_penalty = gbcl.mu_min;
-      schedule_settings.proximal_slack_reduction = gbcl.rho_p_outer;
-      schedule_settings.safe_guard = gbcl.safe_guard;
-      schedule_settings.violation_exponent = gbcl.mu_exp;
-      schedule_settings.initial_tolerance = gbcl.eps_outer_init;
-      schedule_settings.newton_tolerance = gbcl.eps_newton_init;
     } else {
       const auto& gbcl = tuning.gbcl;
       initial_cone_penalty = gbcl.mu_in;
@@ -163,11 +147,9 @@ Results solve(const SparseMatrix& P, const Vector& q, const SparseMatrix& E,
   schedule_settings.early_outers = barrier.early_outers;
   schedule_settings.schedule_rho = interior;
   auto schedule = make_schedule(
-      settings.method == Method::InteriorExp ? ScheduleKind::InteriorExp
-      : interior                             ? ScheduleKind::Interior
-      : which == Penalty::Bcl                ? ScheduleKind::Bcl
-      : which == Penalty::GBclExp            ? ScheduleKind::GbclExp
-                                             : ScheduleKind::Gbcl,
+      interior                ? ScheduleKind::Interior
+      : which == Penalty::Bcl ? ScheduleKind::Bcl
+                              : ScheduleKind::Gbcl,
       schedule_settings);
 
   InitialisationSettings initialisation_settings;

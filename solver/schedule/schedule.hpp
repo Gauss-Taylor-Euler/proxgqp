@@ -10,8 +10,8 @@
 
 namespace proxgqp {
 
-enum class ScheduleKind { Bcl, Gbcl, GbclExp, Interior, InteriorExp };
-enum class Penalty { Bcl, GBcl, GBclExp };
+enum class ScheduleKind { Bcl, Gbcl, Interior };
+enum class Penalty { Bcl, GBcl };
 
 struct ScheduleSettings {
   Scalar penalty_reduction = 0.05;

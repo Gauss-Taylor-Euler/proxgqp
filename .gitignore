@@ -6,3 +6,9 @@ build/
 benchmark/result/warm/
 *.swp
 *.swo
+output/
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz

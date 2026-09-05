@@ -30,13 +30,16 @@ def new_identifier():
     return "%s-%s" % (stamp, uuid.uuid4().hex[:8])
 
 
+DISTRIBUTIONS = {"proxqp": "proxsuite"}
+
+
 def solver_versions(names):
     import importlib.metadata as metadata
     out = {}
     for name in names:
         package = name.split("_")[0]
         try:
-            out[name] = metadata.version(package)
+            out[name] = metadata.version(DISTRIBUTIONS.get(package, package))
         except Exception:
             out[name] = None
     return out

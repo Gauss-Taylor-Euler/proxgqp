@@ -1,19 +1,16 @@
 from . import _core
 
 def _methods():
-    table = {"semismooth": _core.Method.semismooth,
-             "interior": _core.Method.interior,
-             "interior_exp": _core.Method.interior_exp,
-             "barrier": _core.Method.interior,
-             "projection": _core.Method.semismooth}
+    table = {"auto": _core.Method.auto,
+             "semismooth": _core.Method.semismooth,
+             "interior": _core.Method.interior}
     return table
 
 
 METHOD = _methods()
 LINE_SEARCH = {"exact": _core.LineSearch.exact, "armijo": _core.LineSearch.armijo,
                "decrease": _core.LineSearch.decrease}
-PENALTY = {"bcl": _core.Penalty.bcl, "gbcl": _core.Penalty.gbcl,
-           "gbcl_exp": _core.Penalty.gbcl_exp}
+PENALTY = {"bcl": _core.Penalty.bcl, "gbcl": _core.Penalty.gbcl}
 ROAD = {"auto": _core.Road.automatic,
         "three_by_three": _core.Road.three_by_three, "3x3": _core.Road.three_by_three,
         "schur": _core.Road.schur}
@@ -46,8 +43,6 @@ def _targets(settings):
     found = [("", settings), ("bcl", settings.tuning.bcl),
              ("gbcl", settings.tuning.gbcl),
              ("interior", settings.tuning.interior),
-             ("interior_exp", settings.tuning.interior_exp),
-             ("gbcl_exp", settings.tuning.gbcl_exp),
              ("semismooth", settings.tuning.semismooth)]
     return tuple(found)
 

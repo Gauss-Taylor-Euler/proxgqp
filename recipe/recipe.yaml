@@ -1,0 +1,73 @@
+schema_version: 1
+
+context:
+  name: proxgqp
+  version: "0.1.0"
+
+package:
+  name: ${{ name }}
+  version: ${{ version }}
+
+source:
+  git: https://github.com/Gauss-Taylor-Euler/proxgqp.git
+  tag: v${{ version }}
+
+build:
+  number: 0
+  string: py${{ python | version_to_buildstring }}h${{ hash }}_${{ build_number }}
+  script:
+    file: build.sh
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    - cmake >=3.18
+    - ninja
+  host:
+    - python
+    - nanobind >=2.12
+    - eigen >=5.0
+    - libcholmod >=5.3
+    - libblas
+    - liblapack
+  run:
+    - python
+    - numpy >=2.4
+    - scipy >=1.17
+
+tests:
+  - python:
+      imports:
+        - proxgqp
+      pip_check: false
+  - script:
+      - python -c "import proxgqp; assert proxgqp.__version__ == '${{ version }}', proxgqp.__version__"
+      - python smoke.py
+    files:
+      recipe:
+        - smoke.py
+    requirements:
+      run:
+        - python
+        - numpy
+        - scipy
+
+about:
+  homepage: https://github.com/Gauss-Taylor-Euler/proxgqp
+  repository: https://github.com/Gauss-Taylor-Euler/proxgqp
+  summary: A proximal solver for convex conic optimisation with a quadratic objective
+  description: |
+    proxgqp minimises a convex quadratic objective subject to constraints lying
+    in any product of the zero, nonnegative, second order, positive semidefinite,
+    exponential and power cones. The quadratic term is carried natively rather
+    than reformulated conically.
+
+    It offers two roads through the same problem. The semismooth road smooths
+    the conic projection and drives an augmented Lagrangian whose penalty is
+    scheduled per row. The interior road replaces that projection with a
+    barrier. Both share the same linear algebra and the same termination test,
+    so the choice between them is a setting rather than a different solver.
+  license: GPL-2.0-or-later
+  license_file: LICENSE

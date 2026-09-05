@@ -13,7 +13,7 @@
 
 namespace proxgqp {
 
-enum class Method { Semismooth, Interior, InteriorExp };
+enum class Method { Semismooth, Interior, Auto };
 
 struct Shared {
   Scalar rho = 1e-6;
@@ -62,21 +62,6 @@ struct Tuning {
     std::size_t safe_guard = 30;
   } gbcl;
 
-  struct GbclExp {
-    Scalar mu_in = 1e-1;
-    Scalar mu_eq = 1e-3;
-    Scalar alpha = 0.1;
-    Scalar beta = 0.9;
-    Scalar mu_exp = 2.0;
-    Scalar penalty_reduction = 0.3;
-    Scalar mu_adapt = 2.0;
-    Scalar mu_min = 1e-9;
-    Scalar eps_outer_init = 1e-2;
-    Scalar eps_newton_init = 1e-1;
-    Scalar rho_p_outer = 0.1;
-    std::size_t safe_guard = 30;
-  } gbcl_exp;
-
   struct Semismooth : Shared {
     Scalar mu_in = 1e-1;
     LineSearchKind line_search = LineSearchKind::Exact;
@@ -108,18 +93,17 @@ struct Tuning {
     Scalar refactor_ratchet = 10.0;
     std::size_t stall_before_fine = 7;
     std::size_t early_outers = 5;
-  } interior, interior_exp;
+  } interior;
 
 
   const Shared& shared(Method method) const {
     if (method == Method::Interior) return interior;
-    if (method == Method::InteriorExp) return interior_exp;
     return semismooth;
   }
 };
 
 struct Settings {
-  Method method = Method::Interior;
+  Method method = Method::Auto;
 
   Scalar eps_abs = 1e-9;
   Scalar eps_rel = 1e-9;
@@ -139,5 +123,10 @@ struct Settings {
 
   Tuning tuning;
 };
+
+inline Method resolve_method(Method requested) {
+  if (requested != Method::Auto) return requested;
+  return Method::Interior;
+}
 
 }

@@ -8316,10 +8316,12 @@ important gain.
 	same way. A backend may report success and still return a direction that is
 	not finite, or one so large that the fraction to the boundary admits almost no
 	step; the outer iteration is then spent taking no step at all, and the next
-	repeats it at the same regularisation. Both conditions, a non finite direction
-	and a step below \texttt{degenerate\_step}, trigger the same response as a
-	failed factorisation, with one addition: they also ratchet a floor under the
-	regularisation that the schedule is not allowed to undo. Without the ratchet a
+	repeats it at the same regularisation. A non finite direction triggers the
+	same response as a failed factorisation, with one addition: it also ratchets a
+	floor under the regularisation that the schedule is not allowed to undo. A
+	short step is recognised the same way, against \texttt{degenerate\_step},
+	but that test is off by default: it is left at zero, since recovering from a
+	short step cost more solves than it saved on every set. Without the ratchet a
 	bump lasts exactly one attempt, because the schedule drives the regularisation
 	straight back down on the next outer iteration. 
 
@@ -10302,8 +10304,12 @@ The argument does not need $P$
 	\section{\texttt{gbcl}, one penalty per row}
 
 	The default, and the generalisation: \textsc{bcl}'s decision taken for each
-	constraint separately rather than for the problem as a whole. It is shorter
-	than \texttt{bcl}.
+	constraint separately rather than for the problem as a whole. It carries three
+	tolerances rather than one. A bar per row, $\bar w_i$, decides which rows may
+	move their centres and how hard each penalty is pushed. A scalar bar, $b$,
+	decides when the proximal centre follows the iterate. A Newton tolerance,
+	$\varepsilon_N$, stops the inner loop. The three are scheduled separately, and
+	only the first is what \textsc{bcl} calls the bar.
 
 	\begin{table}[H]
 		\centering\small
@@ -10312,49 +10318,130 @@ The argument does not need $P$
 			symbol & setting & controls\\
 			\midrule
 			$\mathrm{e}$ & \texttt{mu\_exp} & how hard a miss is punished\\
-			$\kappa$ & \texttt{mu\_cut} & the hardest push allowed\\
-			$\beta$ & \texttt{beta} & how fast the bar tightens\\
+			$\kappa$ & \texttt{penalty\_reduction} & the hardest push allowed, and
+			where it starts\\
+			$a$ & \texttt{mu\_adapt} & how fast that push is retuned\\
+			$\theta$ & \texttt{penalty\_reduction} & how hard a failed inner loop
+			raises a penalty\\
+			$\alpha$ & \texttt{alpha} & how fast a missed bar loosens\\
+			$\beta$ & \texttt{beta} & how fast a met bar tightens\\
+			$\mu_0$ & \texttt{mu\_in} & the first penalty, and the ceiling over
+			every later one\\
+			$\mu_{\mathrm{eq}}$ & \texttt{mu\_eq} & the same, for the equality
+			penalties\\
 			$\mu_{\min}$ & \texttt{mu\_min} & the floor under every penalty\\
 			$\bar w_0$ & \texttt{eps\_outer\_init} & the bar every row starts at\\
-			$\bar w_{\min}$ & \texttt{smallest\_tolerance} & the floor under every
-			bar\\
+			$\varepsilon_{N,0}$ & \texttt{eps\_newton\_init} & the Newton tolerance
+			every outer starts at\\
+			$\varrho_p$ & \texttt{rho\_p\_outer} & how fast the proximal slack
+			falls\\
+			$N$ & \texttt{safe\_guard} & how many outers the proximal centre may
+			stand still for\\
+			$\varepsilon$ & \texttt{eps\_abs} & the floor under the bars\\
+			$\bar w_{\min}$ & \texttt{smallest\_tolerance} & the floor under the
+			Newton tolerance\\
 			\bottomrule
 		\end{tabular}
 	\end{table}
 
+	Two floors sit under the tolerances and they are deliberately different. The
+	bars stop at the accuracy the solve is asked for, since a row held tighter
+	than that buys nothing. The Newton tolerance stops far below it, because the
+	inner residual is not the quantity being certified: the subproblem has to be
+	driven well past the target for the residual that is certified to reach it. A
+	Newton tolerance floored at $\varepsilon$ instead lets the inner loop declare
+	an iterate solved that the outer loop cannot improve, and the outer loop then
+	repeats it unchanged.
+
+	\begin{algorithm}[H]
+		\caption{$\kappa$, retuned on the observed efficiency}
+		\begin{algorithmic}[1]
+			\Require the primal residual and the number of inner steps taken
+			\If{an earlier outer exists \textbf{and} at least one inner step was
+				taken}
+			\State $\eta\gets\log_{10}\bigl(\text{previous residual}/
+			\text{residual}\bigr)/\text{inner steps taken}$
+			\Comment{digits per step}
+			\If{$\eta$ fell short of the previous $\eta$}
+			\State reverse the direction
+			\EndIf
+			\State $\kappa\gets\kappa\,a^{\text{direction}}$, kept clear of zero and
+			of one
+			\EndIf
+			\State keep the residual as the previous one
+		\end{algorithmic}
+	\end{algorithm}
+
 	\begin{algorithm}[H]
 		\caption{\texttt{gbcl}, one outer update}
 		\begin{algorithmic}[1]
-			\Require the violation per row, the reference value, whether the inner
-			loop converged
+			\Require the violation per row, the primal residual, whether the inner
+			loop converged, the number of inner steps taken
+			\For{every row $i$ with $\text{violation}_i\leq\bar w_i$}
+			\State move that row's slack, dual and equality centres
+			\EndFor
+			\If{the inner loop did not converge}
+			\State $\mu_{\mathrm{floor}}\gets\max\bigl(\mu_{\mathrm{floor}},\
+			\min(\mu_{\max}/\theta,\ \mu_0)\bigr)$
+			\Comment{ratcheted, never undone}
+			\For{every row $i$ with $\text{violation}_i>\bar w_i$}
+			\State $\mu_i\gets\min(\mu_i/\theta,\ \mu_0)$,\quad
+			$\mu_{s,i}\gets\min(\mu_{s,i}/\theta,\ \mu_{\mathrm{eq}})$
+			\EndFor
+			\Else
+			\State retune $\kappa$
 			\For{every row $i$}
 			\State $\displaystyle f_i\gets\min\Bigl(1,\ \max\bigl(\kappa,\
 			(\text{violation}_i/\bar w_i)^{-\mathrm{e}}\bigr)\Bigr)$
 			\EndFor
 			\State flatten $f$ on every curved block, by the minimum
 			\Comment{admissibility}
-			\For{every row $i$ with $\text{violation}_i\leq\bar w_i$}
-			\State move that row's slack, dual and equality centres
-			\EndFor
-			\If{the inner loop converged}
-			\State move all four centres onto the current iterate
-			\State $\rho\gets\max(\rho_{\min},\ \varrho\,\rho)$ if $\rho$ is
-			scheduled,\quad
-			$\rho_p\gets\max(\rho_{p,\min},\ \varrho_p\,\rho_p)$
-			\Comment{fixed factors}
-			\EndIf
-			\State $\mu\gets\max(\mu_{\min},\ \mu\odot f)$,\quad
+			\State $\mu\gets\max\bigl(\max(\mu_{\mathrm{floor}},\mu_{\min}),\
+			\mu\odot f\bigr)$,\quad
 			$\mu_s\gets\max(\mu_{\min},\ \mu_s\odot f)$
+			\EndIf
 			\For{every row $i$}
-			\State $\bar w_i\gets\max\bigl(\bar w_{\min},\
-			\bar w_i\,\mu_i^{\beta}\bigr)$
-			\Comment{the bar only ever tightens}
+			\State $\bar w_i\gets
+			\begin{cases}
+				\max\bigl(\bar w_i\,\mu_i^{\beta},\ \varepsilon\bigr)
+				 & \text{if }\text{violation}_i\leq\bar w_i,\\
+				\bar w_0\,\mu_i^{\alpha} & \text{otherwise}
+			\end{cases}$
+			\Comment{the bar loosens on a miss}
 			\EndFor
-			\State $r\gets$ the relative decrease of the reference since last time
-			\State reduce $\rho$, if scheduled, and $\rho_p$ by $(1-r)$
-			\Comment{progress buys a smaller proximal term}
+			\State $\mu_{\max}\gets\max_i\mu_i$
+			\If{the primal residual met $b$ \textbf{or} $N$ outers have passed}
+			\State move the proximal centre onto the iterate
+			\State $\varepsilon_N\gets\max(\varepsilon_N\,\mu_{\max},\
+			\bar w_{\min})$,\quad
+			$b\gets\max\bigl(b\,\mu_{\max}^{\beta},\ \varepsilon\bigr)$
+			\Else
+			\State $\varepsilon_N\gets
+			\max(\varepsilon_N\,\mu_{\max},\ \bar w_{\min})$ if no inner step was
+			taken, otherwise $\varepsilon_{N,0}\,\mu_{\max}$
+			\State $b\gets\bar w_0\,\mu_{\max}^{\alpha}$
+			\EndIf
+			\State $\rho_p\gets\max(\rho_{p,\min},\ \varrho_p\,\rho_p)$
 		\end{algorithmic}
 	\end{algorithm}
+
+	Three things separate this from \textsc{bcl} beyond the per row decision. A
+	failed inner loop raises the penalties of the rows that missed, rather than
+	leaving them, and ratchets a floor under every penalty that no later
+	reduction may cross; the floor is what stops a penalty from being driven back
+	down into the region that produced the failure. The push $\kappa$ is not a
+	constant: each converged outer measures how many digits of violation the
+	inner loop bought per step, and moves $\kappa$ in whichever direction that
+	measurement last improved. And a row that misses its bar has the bar
+	loosened rather than tightened, so a row that cannot be met does not drag the
+	whole schedule to a floor it will never reach.
+
+	The proximal centre is on its own clock. It follows the iterate only when the
+	primal residual meets the scalar bar $b$, or when $N$ outers have passed
+	without that happening, which bounds how long the centre may stand still.
+	Between those moves the Newton tolerance is reset from $\varepsilon_{N,0}$,
+	except when the previous inner loop took no step at all: there the tolerance
+	is tightened instead, since resetting it would ask for work already done.
 
 
 	\section{\texttt{interior}, for the barrier road}
@@ -12032,6 +12119,27 @@ The argument does not need $P$
 	$10^{-9}$ absolute and relative, a twenty second limit, one pinned core per
 	solve, and every point regraded by the harness. Rows a solver cannot express
 	are excluded from its totals rather than counted against it.
+ It was taken on
+	2026-09-05, started 12:46 UTC and finished 13:57 UTC, seventy minutes for the
+	$1509$ instances, on an \texttt{x86\_64} machine with twelve cores, eight of
+	them carrying the harness, one thread per solve, under Python $3.14$, against
+	Clarabel $0.11.1$, \textsc{piqp} $0.6.3$ and \textsc{proxqp} $0.7.3$, the
+	last as shipped in \texttt{proxsuite} $0.7.3$. Every record it produced, one
+	line per instance and solver, is kept beside the code in
+
+	\begin{center}
+		\texttt{benchmark/result/runs/20260905T124650Z-db22480c/}
+	\end{center}
+
+	with a \texttt{meta.json} recording the machine, the settings and the
+	duration. The identifier is what the harness assigns each run, so a later run
+	lands beside this one rather than over it, and the tables here can always be
+	checked against the records they came from.
+
+	These numbers move as the solver does. They describe the build of that day and
+	are meant to be replaced whenever the solver changes enough to shift them; the
+	comparison is worth repeating rather than quoting, and the harness exists so
+	that repeating it costs one command.
 
 
 
@@ -12048,14 +12156,14 @@ The argument does not need $P$
 			\toprule
 			set & gqp interior & gqp semismooth & Clarabel & PIQP & ProxQP\\
 			\midrule
-			random\_qp (90)          & \textbf{72}  & \textbf{72} & 70  & 67  & 68\\
-			maros (138)              & \textbf{130} & 78  & 108 & 121 & 80\\
-			netlib (109)             & \textbf{86}  & 38  & 67  & \textbf{86} & 31\\
-			skfolio\_real\_qp (96)   & \textbf{96}  & 91  & 95  & 94  & 94\\
-			skfolio\_random\_qp (60) & \textbf{60}  & 42  & 49  & 55  & 54\\
-			seq\_rebalance (120)     & \textbf{120} & 117 & 118 & 115 & 115\\
+			\texttt{random\_qp} (90)             & \textbf{72} & \textbf{72} & \textbf{72} & 67 & 68\\
+			\texttt{maros} (138)                 & \textbf{131} & 94 & 107 & 121 & 80\\
+			\texttt{netlib} (109)                & \textbf{87} & 38 & 66 & 85 & 30\\
+			\texttt{skfolio\_real\_qp} (96)      & \textbf{96} & 95 & 95 & 94 & 94\\
+			\texttt{skfolio\_random\_qp} (60)    & \textbf{60} & 53 & 49 & 55 & 55\\
+			\texttt{seq\_rebalance} (120)        & \textbf{120} & \textbf{120} & 118 & 115 & 115\\
 			\midrule
-			all (613)                & \textbf{564} & 438 & 507 & 538 & 442\\
+			all (613)                            & \textbf{566} & 472 & 507 & 537 & 442\\
 			\bottomrule
 		\end{tabular}
 		\caption{Quadratic sets: instances verified. Every solver can express every
@@ -12068,14 +12176,14 @@ The argument does not need $P$
 			\toprule
 			set & gqp interior & gqp semismooth & Clarabel & PIQP & ProxQP\\
 			\midrule
-			random\_qp (90)          & \textbf{0.144} & 0.226 & 0.176 & 0.203 & 0.339\\
-			maros (138)              & \textbf{0.046} & 0.536 & 0.138 & 0.054 & 0.906\\
-			netlib (109)             & 0.175 & 3.973 & 0.550 & \textbf{0.141} & 5.193\\
-			skfolio\_real\_qp (96)   & \textbf{0.013} & 0.062 & 0.018 & 0.017 & 0.082\\
-			skfolio\_random\_qp (60) & \textbf{0.041} & 0.395 & 0.115 & 0.084 & 0.141\\
-			seq\_rebalance (120)     & \textbf{0.003} & 0.011 & 0.005 & 0.007 & 0.017\\
+			\texttt{random\_qp} (90)             & \textbf{0.146} & 0.245 & 0.176 & 0.202 & 0.341\\
+			\texttt{maros} (138)                 & \textbf{0.043} & 0.266 & 0.141 & 0.056 & 0.928\\
+			\texttt{netlib} (109)                & 0.225 & 2.765 & 0.629 & \textbf{0.157} & 5.590\\
+			\texttt{skfolio\_real\_qp} (96)      & \textbf{0.013} & 0.019 & 0.019 & 0.017 & 0.084\\
+			\texttt{skfolio\_random\_qp} (60)    & \textbf{0.041} & 0.097 & 0.112 & 0.081 & 0.139\\
+			\texttt{seq\_rebalance} (120)        & \textbf{0.003} & 0.004 & 0.005 & 0.007 & 0.016\\
 			\midrule
-			all (613)                & \textbf{0.034} & 0.223 & 0.070 & 0.047 & 0.283\\
+			all (613)                            & \textbf{0.035} & 0.109 & 0.072 & 0.048 & 0.288\\
 			\bottomrule
 		\end{tabular}
 		\caption{Quadratic sets: shifted geometric mean of seconds, shift one
@@ -12095,23 +12203,23 @@ The argument does not need $P$
 			\toprule
 			set & gqp interior & gqp semismooth & Clarabel\\
 			\midrule
-			random\_qp (90)               & \textbf{72}  & \textbf{72} & 70\\
-			random\_socp (90)             & \textbf{71}  & 64  & 69\\
-			random\_psd (60)              & 54  & \textbf{56} & 45\\
-			random\_exp (60)              & \textbf{45}  & 36  & 44\\
-			random\_pow (60)              & \textbf{57}  & 45  & 51\\
-			random\_mixed (60)            & 34  & \textbf{36} & 27\\
-			maros (138)                   & \textbf{130} & 78  & 108\\
-			netlib (109)                  & \textbf{86}  & 38  & 67\\
-			cblib (134)                   & \textbf{65}  & 31  & 19\\
-			skfolio\_real\_qp (96)        & \textbf{96}  & 91  & 95\\
-			skfolio\_real\_curved (192)   & \textbf{192} & 148 & 110\\
-			skfolio\_random\_qp (60)      & \textbf{60}  & 42  & 49\\
-			skfolio\_random\_curved (120) & \textbf{105} & 71  & 82\\
-			seq\_rebalance (120)          & \textbf{120} & 117 & 118\\
-			seq\_rebalance\_curved (120)  & \textbf{120} & 42  & 36\\
+			\texttt{random\_qp} (90)             & \textbf{72} & \textbf{72} & \textbf{72}\\
+			\texttt{random\_socp} (90)           & \textbf{71} & 69 & 69\\
+			\texttt{random\_psd} (60)            & 54 & \textbf{57} & 45\\
+			\texttt{random\_exp} (60)            & \textbf{45} & \textbf{45} & 44\\
+			\texttt{random\_pow} (60)            & 56 & \textbf{59} & 51\\
+			\texttt{random\_mixed} (60)          & 35 & \textbf{47} & 27\\
+			\texttt{maros} (138)                 & \textbf{131} & 94 & 107\\
+			\texttt{netlib} (109)                & \textbf{87} & 38 & 66\\
+			\texttt{cblib} (134)                 & \textbf{66} & 42 & 19\\
+			\texttt{skfolio\_real\_qp} (96)      & \textbf{96} & 95 & 95\\
+			\texttt{skfolio\_real\_curved} (192) & \textbf{192} & 155 & 110\\
+			\texttt{skfolio\_random\_qp} (60)    & \textbf{60} & 53 & 49\\
+			\texttt{skfolio\_random\_curved} (120) & \textbf{105} & 72 & 82\\
+			\texttt{seq\_rebalance} (120)        & \textbf{120} & \textbf{120} & 118\\
+			\texttt{seq\_rebalance\_curved} (120) & \textbf{120} & 59 & 36\\
 			\midrule
-			all (1509)                    & \textbf{1307} & 967 & 990\\
+			all (1509)                           & \textbf{1310} & 1077 & 990\\
 			\bottomrule
 		\end{tabular}
 		\caption{All fifteen sets: instances verified, for the three solvers
@@ -12124,23 +12232,23 @@ The argument does not need $P$
 			\toprule
 			set & gqp interior & gqp semismooth & Clarabel\\
 			\midrule
-			random\_qp (90)               & \textbf{0.144} & 0.226 & 0.176\\
-			random\_socp (90)             & 0.295 & 0.372 & \textbf{0.258}\\
-			random\_psd (60)              & 0.071 & \textbf{0.044} & 0.242\\
-			random\_exp (60)              & 0.542 & 1.195 & \textbf{0.277}\\
-			random\_pow (60)              & 0.207 & 0.248 & \textbf{0.150}\\
-			random\_mixed (60)            & 0.534 & \textbf{0.523} & 1.504\\
-			maros (138)                   & \textbf{0.046} & 0.536 & 0.138\\
-			netlib (109)                  & \textbf{0.175} & 3.973 & 0.550\\
-			cblib (134)                   & \textbf{2.420} & 7.996 & 11.207\\
-			skfolio\_real\_qp (96)        & \textbf{0.013} & 0.062 & 0.018\\
-			skfolio\_real\_curved (192)   & \textbf{0.038} & 0.132 & 0.261\\
-			skfolio\_random\_qp (60)      & \textbf{0.041} & 0.395 & 0.115\\
-			skfolio\_random\_curved (120) & \textbf{0.142} & 1.186 & 0.274\\
-			seq\_rebalance (120)          & \textbf{0.003} & 0.011 & 0.005\\
-			seq\_rebalance\_curved (120)  & \textbf{0.129} & 0.927 & 1.431\\
+			\texttt{random\_qp} (90)             & \textbf{0.146} & 0.245 & 0.176\\
+			\texttt{random\_socp} (90)           & 0.291 & 0.288 & \textbf{0.262}\\
+			\texttt{random\_psd} (60)            & 0.071 & \textbf{0.041} & 0.250\\
+			\texttt{random\_exp} (60)            & 0.536 & 0.535 & \textbf{0.279}\\
+			\texttt{random\_pow} (60)            & 0.211 & \textbf{0.146} & 0.154\\
+			\texttt{random\_mixed} (60)          & 0.478 & \textbf{0.393} & 1.521\\
+			\texttt{maros} (138)                 & \textbf{0.043} & 0.266 & 0.141\\
+			\texttt{netlib} (109)                & \textbf{0.225} & 2.765 & 0.629\\
+			\texttt{cblib} (134)                 & \textbf{2.435} & 5.542 & 11.248\\
+			\texttt{skfolio\_real\_qp} (96)      & \textbf{0.013} & 0.019 & 0.019\\
+			\texttt{skfolio\_real\_curved} (192) & \textbf{0.037} & 0.124 & 0.259\\
+			\texttt{skfolio\_random\_qp} (60)    & \textbf{0.041} & 0.097 & 0.112\\
+			\texttt{skfolio\_random\_curved} (120) & \textbf{0.139} & 1.174 & 0.272\\
+			\texttt{seq\_rebalance} (120)        & \textbf{0.003} & 0.004 & 0.005\\
+			\texttt{seq\_rebalance\_curved} (120) & \textbf{0.131} & 0.735 & 1.430\\
 			\midrule
-			all (1509)                    & \textbf{0.099} & 0.395 & 0.258\\
+			all (1509)                           & \textbf{0.100} & 0.256 & 0.262\\
 			\bottomrule
 		\end{tabular}
 		\caption{All fifteen sets: shifted geometric mean of seconds. Machine
